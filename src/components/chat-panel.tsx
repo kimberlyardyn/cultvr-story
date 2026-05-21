@@ -8,7 +8,7 @@ type Message = {
   content: string;
 };
 
-export function ChatPanel() {
+export function ChatPanel({ variant = "default" }: { variant?: "default" | "almanac" }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -60,16 +60,28 @@ export function ChatPanel() {
     });
   }
 
+  const isAlmanac = variant === "almanac";
+
   return (
     <div className="grid gap-4">
-      <div className="max-h-[28rem] min-h-72 overflow-y-auto rounded-lg border border-black/10 bg-[#fbfaf6] p-4">
+      <div
+        className={
+          isAlmanac
+            ? "max-h-[28rem] min-h-72 overflow-y-auto rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-4"
+            : "max-h-[28rem] min-h-72 overflow-y-auto rounded-lg border border-black/10 bg-[#fbfaf6] p-4"
+        }
+      >
         <div className="grid gap-3">
           {messages.map((message, index) => (
             <div
               className={
-                message.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-lg bg-[#2f5d46] px-4 py-3 text-sm leading-6 text-white"
-                  : "mr-auto max-w-[85%] rounded-lg bg-white px-4 py-3 text-sm leading-6 text-[#26312c] shadow-sm"
+                isAlmanac
+                  ? message.role === "user"
+                    ? "ml-auto max-w-[85%] rounded-xl bg-[color:var(--almanac-ink)] px-4 py-3 text-sm leading-6 text-[color:var(--almanac-paper)]"
+                    : "mr-auto max-w-[85%] rounded-xl bg-[color:var(--almanac-paper)] px-4 py-3 font-serif text-lg leading-7 text-[color:var(--almanac-ink)] shadow-sm"
+                  : message.role === "user"
+                    ? "ml-auto max-w-[85%] rounded-lg bg-[#2f5d46] px-4 py-3 text-sm leading-6 text-white"
+                    : "mr-auto max-w-[85%] rounded-lg bg-white px-4 py-3 text-sm leading-6 text-[#26312c] shadow-sm"
               }
               key={`${message.role}-${index}`}
             >
@@ -77,7 +89,13 @@ export function ChatPanel() {
             </div>
           ))}
           {isPending ? (
-            <div className="mr-auto rounded-lg bg-white px-4 py-3 text-sm text-[#65726b] shadow-sm">
+            <div
+              className={
+                isAlmanac
+                  ? "mr-auto rounded-xl bg-[color:var(--almanac-paper)] px-4 py-3 font-serif text-lg italic text-[color:var(--almanac-ink-soft)] shadow-sm"
+                  : "mr-auto rounded-lg bg-white px-4 py-3 text-sm text-[#65726b] shadow-sm"
+              }
+            >
               Thinking...
             </div>
           ) : null}
@@ -86,7 +104,11 @@ export function ChatPanel() {
 
       <div className="flex gap-2">
         <textarea
-          className="min-h-12 flex-1 resize-none rounded-md border border-black/15 bg-white px-3 py-3 text-sm outline-none focus:border-[#355c46]"
+          className={
+            isAlmanac
+              ? "min-h-12 flex-1 resize-none rounded-xl border border-[color:var(--almanac-rule)] bg-white/60 px-3 py-3 text-sm outline-none focus:border-[color:var(--almanac-olive)]"
+              : "min-h-12 flex-1 resize-none rounded-md border border-black/15 bg-white px-3 py-3 text-sm outline-none focus:border-[#355c46]"
+          }
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -99,7 +121,11 @@ export function ChatPanel() {
         />
         <button
           aria-label="Send message"
-          className="flex size-12 shrink-0 items-center justify-center rounded-md bg-[#17201b] text-white hover:bg-black disabled:opacity-50"
+          className={
+            isAlmanac
+              ? "flex size-12 shrink-0 items-center justify-center rounded-xl bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)] disabled:opacity-50"
+              : "flex size-12 shrink-0 items-center justify-center rounded-md bg-[#17201b] text-white hover:bg-black disabled:opacity-50"
+          }
           disabled={isPending}
           onClick={sendMessage}
           type="button"

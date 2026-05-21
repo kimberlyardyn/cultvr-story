@@ -29,6 +29,12 @@ const activitySchema = z.object({
   impact: z.string().max(1200).optional(),
 });
 
+const awardSchema = z.object({
+  name: z.string().min(2).max(160),
+  scope: z.string().max(80).optional(),
+  year: z.string().max(20).optional(),
+});
+
 async function requireUser() {
   const supabase = await createClient();
   const {
@@ -88,6 +94,18 @@ export async function createActivity(formData: FormData) {
   });
 
   await supabase.from("activities").insert({ ...parsed, user_id: user.id });
+  revalidatePath("/dashboard");
+}
+
+export async function createAward(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const parsed = awardSchema.parse({
+    name: value(formData, "name"),
+    scope: value(formData, "scope") || null,
+    year: value(formData, "year") || null,
+  });
+
+  await supabase.from("awards").insert({ ...parsed, user_id: user.id });
   revalidatePath("/dashboard");
 }
 

@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 
 type VoiceStatus = "idle" | "connecting" | "live" | "error";
 
-export function VoicePanel() {
+export function VoicePanel({ variant = "default" }: { variant?: "default" | "almanac" }) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [log, setLog] = useState<string[]>([
     "Voice mode will connect through an ephemeral OpenAI Realtime token.",
@@ -115,12 +115,24 @@ export function VoicePanel() {
     setStatus("idle");
   }
 
+  const isAlmanac = variant === "almanac";
+
   return (
-    <div className="grid gap-4">
-      <div className="rounded-lg border border-black/10 bg-[#fbfaf6] p-4">
+    <div className="grid w-full gap-4">
+      <div
+        className={
+          isAlmanac
+            ? "rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-5"
+            : "rounded-lg border border-black/10 bg-[#fbfaf6] p-4"
+        }
+      >
         <div className="flex flex-wrap items-center gap-3">
           <button
-            className="flex h-11 items-center gap-2 rounded-md bg-[#2f5d46] px-4 text-sm font-semibold text-white hover:bg-[#264b39] disabled:opacity-50"
+            className={
+              isAlmanac
+                ? "flex h-12 items-center gap-2 rounded-full bg-[color:var(--almanac-clay)] px-5 text-sm font-medium text-[color:var(--almanac-paper)] disabled:opacity-50"
+                : "flex h-11 items-center gap-2 rounded-md bg-[#2f5d46] px-4 text-sm font-semibold text-white hover:bg-[#264b39] disabled:opacity-50"
+            }
             disabled={status === "connecting" || status === "live"}
             onClick={startVoice}
             type="button"
@@ -129,20 +141,36 @@ export function VoicePanel() {
             Start
           </button>
           <button
-            className="flex h-11 items-center gap-2 rounded-md border border-black/15 bg-white px-4 text-sm font-semibold text-[#17201b] hover:bg-[#f2f4ef]"
+            className={
+              isAlmanac
+                ? "flex h-12 items-center gap-2 rounded-full border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] px-5 text-sm font-medium text-[color:var(--almanac-ink)]"
+                : "flex h-11 items-center gap-2 rounded-md border border-black/15 bg-white px-4 text-sm font-semibold text-[#17201b] hover:bg-[#f2f4ef]"
+            }
             onClick={stopVoice}
             type="button"
           >
             {status === "live" ? <PhoneOff size={17} /> : <MicOff size={17} />}
             Stop
           </button>
-          <span className="rounded-md bg-white px-3 py-2 text-sm font-medium text-[#55615b]">
+          <span
+            className={
+              isAlmanac
+                ? "rounded-full bg-[color:var(--almanac-paper)] px-4 py-2 text-sm font-medium text-[color:var(--almanac-ink-soft)]"
+                : "rounded-md bg-white px-3 py-2 text-sm font-medium text-[#55615b]"
+            }
+          >
             {status}
           </span>
         </div>
       </div>
 
-      <div className="min-h-28 rounded-lg border border-black/10 bg-white p-4 text-sm leading-6 text-[#55615b]">
+      <div
+        className={
+          isAlmanac
+            ? "min-h-44 rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 font-serif text-lg leading-8 text-[color:var(--almanac-ink)]"
+            : "min-h-28 rounded-lg border border-black/10 bg-white p-4 text-sm leading-6 text-[#55615b]"
+        }
+      >
         {log.map((entry, index) => (
           <p key={`${entry}-${index}`}>{entry}</p>
         ))}

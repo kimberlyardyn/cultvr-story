@@ -1,21 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
 
-import { signOut } from "@/app/actions";
-import { ChatPanel } from "@/components/chat-panel";
-import { DashboardCard } from "@/components/dashboard-card";
-import {
-  ActivitiesList,
-  GoalsList,
-  NotesList,
-  TasksList,
-} from "@/components/dashboard-lists";
-import { QuickAddForms } from "@/components/quick-add-forms";
-import { VoicePanel } from "@/components/voice-panel";
+import { AlmanacWorkspace } from "@/components/almanac-workspace";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import type { Activity, Goal, Note, StudentTask } from "@/lib/types";
+import type { Activity, Award, Goal, Note, StudentTask } from "@/lib/types";
 
 export default async function DashboardPage() {
   if (!hasSupabaseEnv()) {
@@ -29,7 +18,7 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  const [notes, goals, tasks, activities] = await Promise.all([
+  const [notes, goals, tasks, activities, awards] = await Promise.all([
     supabase
       .from("notes")
       .select("id,title,body,category,created_at")
@@ -50,74 +39,22 @@ export default async function DashboardPage() {
       .select("id,name,role,impact,years,created_at")
       .order("created_at", { ascending: false })
       .limit(6),
+    supabase
+      .from("awards")
+      .select("id,name,scope,year,created_at")
+      .order("created_at", { ascending: false })
+      .limit(12),
   ]);
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-7xl px-5 py-6">
-      <header className="flex flex-col gap-4 border-b border-black/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link className="text-sm font-semibold text-[#355c46]" href="/">
-            Cultvr
-          </Link>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#17201b]">
-            Student command center
-          </h1>
-          <p className="mt-2 text-sm text-[#65726b]">
-            Signed in as {user.email}
-          </p>
-        </div>
-        <form action={signOut}>
-          <button className="flex h-10 items-center gap-2 rounded-md border border-black/15 bg-white px-4 text-sm font-semibold text-[#17201b] hover:bg-[#f2f4ef]">
-            <LogOut size={16} />
-            Sign out
-          </button>
-        </form>
-      </header>
-
-      <section className="grid gap-5 py-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="grid gap-5">
-          <DashboardCard
-            description="Capture structured records that become the source material for essays, plans, and counseling conversations."
-            title="Quick capture"
-          >
-            <QuickAddForms />
-          </DashboardCard>
-
-          <DashboardCard
-            description="Use text chat to brainstorm achievements, turn rough notes into next steps, and pressure-test essay angles."
-            title="AI chat counselor"
-          >
-            <ChatPanel />
-          </DashboardCard>
-        </div>
-
-        <div className="grid gap-5">
-          <DashboardCard
-            description="Talk through wins, blockers, and plans. The realtime endpoint uses a short-lived client token."
-            title="Voice session"
-          >
-            <VoicePanel />
-          </DashboardCard>
-
-          <DashboardCard title="Tasks">
-            <TasksList tasks={(tasks.data ?? []) as StudentTask[]} />
-          </DashboardCard>
-
-          <DashboardCard title="Goals">
-            <GoalsList goals={(goals.data ?? []) as Goal[]} />
-          </DashboardCard>
-        </div>
-      </section>
-
-      <section className="grid gap-5 pb-10 lg:grid-cols-2">
-        <DashboardCard title="Recent notes">
-          <NotesList notes={(notes.data ?? []) as Note[]} />
-        </DashboardCard>
-        <DashboardCard title="Activities">
-          <ActivitiesList activities={(activities.data ?? []) as Activity[]} />
-        </DashboardCard>
-      </section>
-    </main>
+    <AlmanacWorkspace
+      activities={(activities.data ?? []) as Activity[]}
+      awards={(awards.data ?? []) as Award[]}
+      goals={(goals.data ?? []) as Goal[]}
+      notes={(notes.data ?? []) as Note[]}
+      tasks={(tasks.data ?? []) as StudentTask[]}
+      userEmail={user.email ?? null}
+    />
   );
 }
 

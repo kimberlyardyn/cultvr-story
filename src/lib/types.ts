@@ -31,9 +31,18 @@ export type Activity = {
   created_at: string;
 };
 
+export type Award = {
+  id: string;
+  name: string;
+  scope: string | null;
+  year: string | null;
+  created_at: string;
+};
+
 export type DashboardData = {
   notes: Note[];
   goals: Goal[];
   tasks: StudentTask[];
   activities: Activity[];
+  awards: Award[];
 };

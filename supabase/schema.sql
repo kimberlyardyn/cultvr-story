@@ -49,6 +49,16 @@ create table if not exists public.activities (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.awards (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  name text not null,
+  scope text,
+  year text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.documents (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
@@ -82,6 +92,7 @@ alter table public.notes enable row level security;
 alter table public.goals enable row level security;
 alter table public.tasks enable row level security;
 alter table public.activities enable row level security;
+alter table public.awards enable row level security;
 alter table public.documents enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
@@ -116,6 +127,12 @@ with check (auth.uid() = user_id);
 drop policy if exists "activities_all_own" on public.activities;
 create policy "activities_all_own"
 on public.activities for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "awards_all_own" on public.awards;
+create policy "awards_all_own"
+on public.awards for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
