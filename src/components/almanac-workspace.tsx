@@ -3,33 +3,30 @@
 import {
   BookOpen,
   CalendarClock,
-  FileUp,
+  Compass,
   Leaf,
   LogOut,
   Mic,
+  MicOff,
   NotebookPen,
   PenLine,
   Plus,
-  Sparkles,
-  Trophy,
+  Settings,
+  Target,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { signOut } from "@/app/actions";
 import {
   createActivity,
-  createAward,
   createGoal,
   createNote,
-  createTask,
-  uploadDocument,
 } from "@/app/dashboard/actions";
-import { ChatPanel } from "@/components/chat-panel";
 import { VoicePanel } from "@/components/voice-panel";
 import type { Activity, Award, Goal, Note, StudentTask } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
-type Tab = "overview" | "activities" | "awards" | "notes" | "timeline";
+type Tab = "overview" | "activities" | "discover" | "goals" | "notes" | "timeline";
 
 type AlmanacWorkspaceProps = {
   userEmail: string | null;
@@ -54,11 +51,12 @@ const palette = {
 };
 
 const nav = [
-  { id: "overview", label: "Almanac", icon: BookOpen },
+  { id: "overview", label: "Dashboard", icon: BookOpen },
   { id: "activities", label: "Activities", icon: Leaf },
-  { id: "awards", label: "Awards", icon: Trophy },
+  { id: "goals", label: "Goals", icon: Target },
   { id: "notes", label: "Notes", icon: NotebookPen },
   { id: "timeline", label: "Timeline", icon: CalendarClock },
+  { id: "discover", label: "Discover", icon: Compass },
 ] satisfies Array<{ id: Tab; label: string; icon: typeof BookOpen }>;
 
 export function AlmanacWorkspace({
@@ -71,7 +69,22 @@ export function AlmanacWorkspace({
 }: AlmanacWorkspaceProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const firstName = getDisplayName(userEmail);
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [navLayout, setNavLayoutState] = useState<"left" | "top">("left");
+  const [customName, setCustomName] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("cultvr-nav-layout");
+    if (saved === "left" || saved === "top") setNavLayoutState(saved); // eslint-disable-line react-hooks/set-state-in-effect
+  }, []);
+
+  const setNavLayout = (v: "left" | "top") => {
+    setNavLayoutState(v);
+    localStorage.setItem("cultvr-nav-layout", v);
+    setPrefsOpen(false);
+  };
+
+  const firstName = customName || getDisplayName(userEmail);
 
   const rings = [
     {
@@ -103,42 +116,9 @@ export function AlmanacWorkspace({
       100,
   );
 
-  const recent = useMemo(
-    () =>
-      [
-        ...notes.map((item) => ({
-          id: item.id,
-          date: item.created_at,
-          kind: item.category || "Note",
-          title: item.title,
-          detail: item.body,
-          color: palette.butter,
-        })),
-        ...activities.map((item) => ({
-          id: item.id,
-          date: item.created_at,
-          kind: "Activity",
-          title: item.name,
-          detail: [item.role, item.years].filter(Boolean).join(" - "),
-          color: palette.olive,
-        })),
-        ...awards.map((item) => ({
-          id: item.id,
-          date: item.created_at,
-          kind: "Award",
-          title: item.name,
-          detail: [item.scope, item.year].filter(Boolean).join(" - "),
-          color: palette.clay,
-        })),
-      ]
-        .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
-        .slice(0, 5),
-    [activities, awards, notes],
-  );
-
   return (
     <main
-      className="min-h-screen overflow-hidden text-[color:var(--almanac-ink)]"
+      className="h-screen overflow-hidden text-[color:var(--almanac-ink)]"
       style={
         {
           "--almanac-paper": palette.paper,
@@ -157,60 +137,89 @@ export function AlmanacWorkspace({
         } as React.CSSProperties
       }
     >
-      <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 flex-col border-r border-[color:var(--almanac-rule)] bg-black/[0.018] px-6 py-7 lg:flex">
-          <Brand />
-          <nav className="mt-10 grid gap-1">
-            {nav.map((item) => {
-              const active = tab === item.id;
-              return (
+      <div className={["flex h-full", navLayout === "top" ? "flex-col" : ""].join(" ")}>
+        {navLayout === "left" ? (
+          <aside className="hidden w-64 shrink-0 flex-col border-r border-[color:var(--almanac-rule)] bg-black/[0.018] px-6 py-7 lg:flex">
+            <Brand />
+            <nav className="mt-10 grid gap-1">
+              {nav.map((item) => {
+                const active = tab === item.id;
+                return (
+                  <button
+                    className={[
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition",
+                      active
+                        ? "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]"
+                        : "text-[color:var(--almanac-ink)] hover:bg-black/[0.035]",
+                    ].join(" ")}
+                    key={item.id}
+                    onClick={() => setTab(item.id)}
+                    type="button"
+                  >
+                    <item.icon
+                      className={active ? "text-[color:var(--almanac-paper)]" : "text-[color:var(--almanac-ink-soft)]"}
+                      size={16}
+                    />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="mt-auto grid gap-2">
+              <button
+                className={[
+                  "flex items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm font-medium transition",
+                  voiceOpen
+                    ? "bg-[color:var(--almanac-clay)] text-[color:var(--almanac-paper)]"
+                    : "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]",
+                ].join(" ")}
+                onClick={() => setVoiceOpen((v) => !v)}
+                type="button"
+              >
+                {voiceOpen ? <MicOff size={16} /> : <Mic size={16} />}
+                {voiceOpen ? "End voice mode" : "Voice mode"}
+              </button>
+              <div className="relative">
                 <button
-                  className={[
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition",
-                    active
-                      ? "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]"
-                      : "text-[color:var(--almanac-ink)] hover:bg-black/[0.035]",
-                  ].join(" ")}
-                  key={item.id}
-                  onClick={() => setTab(item.id)}
+                  className="flex w-full items-center gap-3 rounded-lg border border-[color:var(--almanac-rule)] px-4 py-2.5 text-left text-sm font-medium text-[color:var(--almanac-ink)] hover:bg-black/[0.035]"
+                  onClick={() => setPrefsOpen((v) => !v)}
                   type="button"
                 >
-                  <item.icon
-                    className={active ? "text-[color:var(--almanac-paper)]" : "text-[color:var(--almanac-ink-soft)]"}
-                    size={16}
-                  />
-                  {item.label}
+                  <Settings size={16} className="text-[color:var(--almanac-ink-soft)]" />
+                  Settings
                 </button>
-              );
-            })}
-          </nav>
-
-          <button
-            className="mt-auto flex items-center gap-3 rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-3 text-left text-sm"
-            onClick={() => setVoiceOpen(true)}
-            type="button"
-          >
-            <span className="flex size-9 items-center justify-center rounded-full bg-[color:var(--almanac-clay)] text-[color:var(--almanac-paper)]">
-              <Mic size={16} />
-            </span>
-            <span>
-              <span className="block font-medium">Talk to your counsellor</span>
-              <span className="block text-xs uppercase tracking-[0.12em] text-[color:var(--almanac-ink-soft)]">
-                voice · always on
-              </span>
-            </span>
-          </button>
-
-          <div className="mt-6 flex items-center gap-3 px-1">
-            <Avatar email={userEmail} />
-            <div className="min-w-0 text-sm">
-              <p className="truncate font-medium">{firstName}</p>
-              <p className="truncate text-xs text-[color:var(--almanac-ink-soft)]">
-                {userEmail}
-              </p>
+                <PrefsPopup
+                  customName={customName}
+                  direction="up"
+                  navLayout={navLayout}
+                  open={prefsOpen}
+                  setCustomName={setCustomName}
+                  setNavLayout={setNavLayout}
+                />
+              </div>
+              <form action={signOut}>
+                <button className="flex w-full items-center gap-3 rounded-lg border border-[color:var(--almanac-rule)] px-4 py-2.5 text-left text-sm font-medium text-[color:var(--almanac-ink)]">
+                  <LogOut size={16} />
+                  Sign out
+                </button>
+              </form>
             </div>
-          </div>
-        </aside>
+          </aside>
+        ) : (
+          <TopBar
+            customName={customName}
+            navLayout={navLayout}
+            prefsOpen={prefsOpen}
+            setCustomName={setCustomName}
+            setNavLayout={setNavLayout}
+            setPrefsOpen={setPrefsOpen}
+            setTab={setTab}
+            tab={tab}
+            voiceOpen={voiceOpen}
+            onVoice={() => setVoiceOpen((v) => !v)}
+          />
+        )}
 
         <section className="flex min-w-0 flex-1 flex-col">
           <MobileBar tab={tab} setTab={setTab} onVoice={() => setVoiceOpen(true)} />
@@ -219,14 +228,13 @@ export function AlmanacWorkspace({
               depth={depth}
               firstName={firstName}
               goals={goals}
-              onVoice={() => setVoiceOpen(true)}
-              recent={recent}
               rings={rings}
               tasks={tasks}
             />
           ) : null}
           {tab === "activities" ? <ActivitiesView activities={activities} /> : null}
-          {tab === "awards" ? <AwardsView awards={awards} /> : null}
+          {tab === "discover" ? <DiscoverView /> : null}
+          {tab === "goals" ? <GoalsView goals={goals} /> : null}
           {tab === "notes" ? <NotesView notes={notes} /> : null}
           {tab === "timeline" ? (
             <TimelineView activities={activities} awards={awards} notes={notes} />
@@ -235,7 +243,214 @@ export function AlmanacWorkspace({
       </div>
 
       {voiceOpen ? <VoiceOverlay onClose={() => setVoiceOpen(false)} /> : null}
+      {prefsOpen ? (
+        <div className="fixed inset-0 z-40" onClick={() => setPrefsOpen(false)} />
+      ) : null}
     </main>
+  );
+}
+
+function PrefsPopup({
+  open,
+  direction,
+  navLayout,
+  setNavLayout,
+  customName,
+  setCustomName,
+}: {
+  open: boolean;
+  direction: "up" | "down";
+  navLayout: "left" | "top";
+  setNavLayout: (v: "left" | "top") => void;
+  customName: string;
+  setCustomName: (v: string) => void;
+}) {
+  const [nameInput, setNameInput] = useState(customName);
+
+  const posClass = direction === "up" ? "bottom-full left-0 mb-2" : "top-full right-0 mt-1";
+  const slideClass = open
+    ? "translate-y-0 opacity-100 pointer-events-auto"
+    : direction === "up"
+      ? "translate-y-1 opacity-0 pointer-events-none"
+      : "-translate-y-1 opacity-0 pointer-events-none";
+
+  return (
+    <div
+      className={[
+        "absolute z-50 w-60 rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-4 shadow-xl transition-all duration-150",
+        posClass,
+        slideClass,
+      ].join(" ")}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="mb-3 text-xs font-medium uppercase tracking-[0.14em] text-[color:var(--almanac-ink-soft)]">
+        Settings
+      </p>
+
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-[color:var(--almanac-ink-soft)]">
+          Display name
+        </p>
+        <input
+          className="h-9 w-full rounded-lg border border-[color:var(--almanac-rule)] bg-white/60 px-3 text-sm font-medium outline-none focus:border-[color:var(--almanac-olive)]"
+          onChange={(e) => setNameInput(e.target.value)}
+          placeholder="Your name"
+          type="text"
+          value={nameInput}
+        />
+        <button
+          className="mt-1.5 h-7 w-full rounded-lg bg-[color:var(--almanac-ink)] text-xs font-medium text-[color:var(--almanac-paper)]"
+          onClick={() => setCustomName(nameInput)}
+          type="button"
+        >
+          Save
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <p className="mb-1.5 text-xs font-medium text-[color:var(--almanac-ink-soft)]">
+          Layout
+        </p>
+        <div className="flex gap-1.5">
+          {(["left", "top"] as const).map((layout) => (
+            <button
+              className={[
+                "rounded-md px-2 py-0.5 text-xs font-medium transition",
+                navLayout === layout
+                  ? "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]"
+                  : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+              ].join(" ")}
+              key={layout}
+              onClick={() => setNavLayout(layout)}
+              type="button"
+            >
+              {layout === "left" ? "Left" : "Top"}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopBar({
+  tab,
+  setTab,
+  voiceOpen,
+  onVoice,
+  prefsOpen,
+  setPrefsOpen,
+  navLayout,
+  setNavLayout,
+  customName,
+  setCustomName,
+}: {
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  voiceOpen: boolean;
+  onVoice: () => void;
+  navLayout: "left" | "top";
+  prefsOpen: boolean;
+  setPrefsOpen: (fn: (v: boolean) => boolean) => void;
+  setNavLayout: (v: "left" | "top") => void;
+  customName: string;
+  setCustomName: (v: string) => void;
+}) {
+  return (
+    <header className="hidden shrink-0 items-center justify-between gap-6 border-b border-[color:var(--almanac-rule)] px-8 py-4 lg:flex">
+      <Brand />
+
+      <div className="flex items-center gap-6">
+        <nav className="flex items-center gap-6 text-sm">
+          {nav.map((item) => {
+            const active = tab === item.id;
+            return (
+              <button
+                className={[
+                  "text-sm font-medium transition",
+                  active
+                    ? "text-[color:var(--almanac-ink)]"
+                    : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+                ].join(" ")}
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                type="button"
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="flex items-center gap-1 border-l border-[color:var(--almanac-rule)] pl-4">
+          <NavIconBtn
+            label={voiceOpen ? "End voice" : "Voice"}
+            onClick={onVoice}
+            active={voiceOpen}
+          >
+            {voiceOpen ? <MicOff size={16} /> : <Mic size={16} />}
+          </NavIconBtn>
+
+          <div className="relative">
+            <NavIconBtn
+              label="Settings"
+              onClick={() => setPrefsOpen((v) => !v)}
+              active={prefsOpen}
+            >
+              <Settings size={16} />
+            </NavIconBtn>
+            <PrefsPopup
+              customName={customName}
+              direction="down"
+              navLayout={navLayout}
+              open={prefsOpen}
+              setCustomName={setCustomName}
+              setNavLayout={setNavLayout}
+            />
+          </div>
+
+          <form action={signOut}>
+            <NavIconBtn label="Sign out" type="submit">
+              <LogOut size={16} />
+            </NavIconBtn>
+          </form>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function NavIconBtn({
+  children,
+  label,
+  onClick,
+  active = false,
+  type = "button",
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+  active?: boolean;
+  type?: "button" | "submit";
+}) {
+  return (
+    <div className="group relative">
+      <button
+        className={[
+          "flex size-9 items-center justify-center rounded-full transition",
+          active
+            ? "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]"
+            : "text-[color:var(--almanac-ink-soft)] hover:bg-black/[0.06] hover:text-[color:var(--almanac-ink)]",
+        ].join(" ")}
+        onClick={onClick}
+        type={type}
+      >
+        {children}
+      </button>
+      <span className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-[color:var(--almanac-ink)] px-2 py-1 text-[0.68rem] text-[color:var(--almanac-paper)] opacity-0 transition-opacity group-hover:opacity-100">
+        {label}
+      </span>
+    </div>
   );
 }
 
@@ -243,23 +458,12 @@ function Overview({
   depth,
   firstName,
   goals,
-  onVoice,
-  recent,
   rings,
   tasks,
 }: {
   depth: number;
   firstName: string;
   goals: Goal[];
-  onVoice: () => void;
-  recent: Array<{
-    id: string;
-    date: string;
-    kind: string;
-    title: string;
-    detail: string | null;
-    color: string;
-  }>;
   rings: Array<{
     label: string;
     count: number;
@@ -270,18 +474,8 @@ function Overview({
   tasks: StudentTask[];
 }) {
   return (
-    <Scrollable>
+    <div className="flex h-full flex-col overflow-hidden">
       <PageHeader
-        action={
-          <button
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-[color:var(--almanac-ink)] px-4 text-sm font-medium text-[color:var(--almanac-paper)]"
-            onClick={onVoice}
-            type="button"
-          >
-            <Mic size={16} />
-            Voice mode
-          </button>
-        }
         eyebrow="Spring 2026 · Week 14"
         subtitle="Three things on your plate this week: an essay seed, a recommendation follow-up, and one clearer activity story."
         title={
@@ -295,10 +489,10 @@ function Overview({
         }
       />
 
-      <div className="grid gap-5 px-5 py-6 md:px-9 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid flex-1 gap-5 overflow-hidden px-5 py-6 md:px-9 xl:grid-cols-[1.1fr_0.9fr] xl:grid-rows-[auto_1fr]">
         <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-5 md:p-6 xl:col-span-2">
           <div className="grid items-center gap-7 md:grid-cols-[15rem_1fr]">
-            <div className="relative mx-auto size-56">
+            <div className="relative mx-auto size-52">
               <ProgressRings rings={rings} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <p className="font-serif text-4xl leading-none">{depth}%</p>
@@ -309,7 +503,7 @@ function Overview({
             </div>
             <div>
               <SectionKicker>Your rings</SectionKicker>
-              <div className="mt-4 grid gap-4">
+              <div className="mt-3 grid gap-3">
                 {rings.map((ring) => (
                   <div className="flex items-center gap-4" key={ring.label}>
                     <span
@@ -318,12 +512,12 @@ function Overview({
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="font-serif text-2xl italic">{ring.label}</p>
+                        <p className="font-serif text-xl italic">{ring.label}</p>
                         <p className="text-xs text-[color:var(--almanac-ink-soft)]">
                           {ring.count} of {ring.goal} · {ring.note}
                         </p>
                       </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/10">
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10">
                         <div
                           className="h-full rounded-full"
                           style={{
@@ -340,7 +534,7 @@ function Overview({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6">
+        <section className="overflow-hidden rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6">
           <SectionKicker>Next moves</SectionKicker>
           <div className="mt-4 grid gap-3">
             {tasks.slice(0, 4).map((task) => (
@@ -350,7 +544,7 @@ function Overview({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6">
+        <section className="overflow-hidden rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6">
           <SectionKicker>Goals</SectionKicker>
           <div className="mt-4 grid gap-3">
             {goals.slice(0, 4).map((goal) => (
@@ -367,54 +561,8 @@ function Overview({
             {!goals.length ? <Empty label="No goals yet." /> : null}
           </div>
         </section>
-
-        <QuickCapture />
-
-        <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6 xl:col-span-2">
-          <div className="flex items-baseline justify-between gap-4">
-            <SectionKicker>Recently entered</SectionKicker>
-            <span className="text-xs text-[color:var(--almanac-ink-soft)]">
-              latest workspace records
-            </span>
-          </div>
-          <div className="mt-3 divide-y divide-[color:var(--almanac-rule)]">
-            {recent.map((row) => (
-              <article
-                className="grid gap-2 py-4 sm:grid-cols-[5rem_7rem_1fr]"
-                key={`${row.kind}-${row.id}`}
-              >
-                <p className="font-serif italic text-[color:var(--almanac-ink-soft)]">
-                  {shortDate(row.date)}
-                </p>
-                <p className="flex items-center gap-2 text-[0.68rem] uppercase tracking-[0.14em] text-[color:var(--almanac-ink-soft)]">
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: row.color }}
-                  />
-                  {row.kind}
-                </p>
-                <div>
-                  <p className="text-sm font-medium">{row.title}</p>
-                  {row.detail ? (
-                    <p className="mt-1 line-clamp-1 text-xs text-[color:var(--almanac-ink-soft)]">
-                      {row.detail}
-                    </p>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-            {!recent.length ? <Empty label="Add your first record to begin." /> : null}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6 xl:col-span-2">
-          <SectionKicker>AI chat counsellor</SectionKicker>
-          <div className="mt-4">
-            <ChatPanel variant="almanac" />
-          </div>
-        </section>
       </div>
-    </Scrollable>
+    </div>
   );
 }
 
@@ -465,46 +613,130 @@ function ActivitiesView({ activities }: { activities: Activity[] }) {
   );
 }
 
-function AwardsView({ awards }: { awards: Award[] }) {
+
+function GoalsView({ goals }: { goals: Goal[] }) {
   return (
     <Scrollable>
       <PageHeader
-        action={<AddButton label="Add award" tone="clay" />}
-        eyebrow={`${awards.length} logged`}
-        subtitle="Honors, recognitions, and distinctions. Tag scope so the story balances local, regional, and national signals."
+        eyebrow={`${goals.length} logged`}
+        subtitle="Targets, deadlines, and milestones. Track what you're working toward and when."
         title={
           <>
             Your{" "}
             <em className="font-serif italic text-[color:var(--almanac-clay)]">
-              awards
+              goals
             </em>
           </>
         }
       />
-      <div className="grid gap-4 px-5 py-6 md:grid-cols-2 md:px-9 xl:grid-cols-3">
-        <InlineAwardForm />
-        {awards.map((award) => (
+      <div className="grid gap-4 px-5 py-6 md:px-9">
+        <InlineGoalForm />
+        {goals.map((goal) => (
           <article
-            className="relative min-h-44 overflow-hidden rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5"
-            key={award.id}
+            className="flex items-start justify-between gap-6 rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5"
+            key={goal.id}
           >
-            <div className="absolute -right-8 -top-8 size-28 rounded-full bg-[color:var(--almanac-paper-deep)]" />
-            <div className="relative">
-              <span className="flex size-10 items-center justify-center rounded-full bg-[color:var(--almanac-clay)] text-[color:var(--almanac-paper)]">
-                <Trophy size={19} />
-              </span>
-              <p className="mt-5 text-[0.68rem] uppercase tracking-[0.16em] text-[color:var(--almanac-ink-soft)]">
-                {[award.scope, award.year].filter(Boolean).join(" · ") || "Award"}
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.68rem] uppercase tracking-[0.16em] text-[color:var(--almanac-ink-soft)]">
+                Goal
               </p>
-              <h2 className="mt-2 font-serif text-2xl leading-tight">
-                {award.name}
-              </h2>
+              <h2 className="mt-2 font-serif text-2xl leading-tight">{goal.title}</h2>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[0.68rem] uppercase tracking-[0.16em] text-[color:var(--almanac-ink-soft)]">
+                Target
+              </p>
+              <p className="mt-2 font-serif text-xl">{formatDate(goal.target_date)}</p>
             </div>
           </article>
         ))}
-        {!awards.length ? <Empty label="No awards yet." /> : null}
+        {!goals.length ? <Empty label="No goals yet." /> : null}
       </div>
     </Scrollable>
+  );
+}
+
+function DiscoverView() {
+  const resources = [
+    {
+      category: "Essay Prompts",
+      title: "Common App Essay Prompts 2025–26",
+      description: "Seven prompts, 650 words. Pick the one that lets your authentic voice through.",
+      color: palette.olive,
+    },
+    {
+      category: "Scholarships",
+      title: "QuestBridge National College Match",
+      description: "Full four-year scholarships for high-achieving students with financial need.",
+      color: palette.clay,
+    },
+    {
+      category: "Testing",
+      title: "SAT & ACT Calendar",
+      description: "Key registration deadlines and test dates for the upcoming cycle.",
+      color: palette.butter,
+    },
+    {
+      category: "College Research",
+      title: "Naviance College Search",
+      description: "Compare acceptance rates, GPA ranges, and scattergrams from your school.",
+      color: palette.sage,
+    },
+    {
+      category: "Financial Aid",
+      title: "FAFSA Opening Date",
+      description: "The 2026–27 FAFSA opens December 1, 2025. File early for priority aid.",
+      color: palette.olive,
+    },
+    {
+      category: "Deadlines",
+      title: "Early Decision vs. Early Action",
+      description: "Understand binding vs. non-binding early applications before November deadlines.",
+      color: palette.clay,
+    },
+  ];
+
+  return (
+    <Scrollable>
+      <PageHeader
+        eyebrow="Curated for you"
+        subtitle="Resources, deadlines, and opportunities matched to where you are in the process."
+        title={
+          <>
+            <em className="font-serif italic text-[color:var(--almanac-sage)]">Discover</em>
+          </>
+        }
+      />
+      <div className="grid gap-4 px-5 py-6 md:grid-cols-2 md:px-9 xl:grid-cols-3">
+        {resources.map((item) => (
+          <article
+            className="flex flex-col gap-3 rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5"
+            key={item.title}
+          >
+            <p
+              className="text-[0.68rem] uppercase tracking-[0.16em]"
+              style={{ color: item.color }}
+            >
+              {item.category}
+            </p>
+            <h2 className="font-serif text-2xl leading-tight">{item.title}</h2>
+            <p className="text-sm leading-6 text-[color:var(--almanac-ink-soft)]">
+              {item.description}
+            </p>
+          </article>
+        ))}
+      </div>
+    </Scrollable>
+  );
+}
+
+function InlineGoalForm() {
+  return (
+    <CaptureForm action={createGoal} icon={<Target size={16} />} title="New goal">
+      <TextInput name="title" placeholder="Finish first Common App essay draft" required />
+      <TextInput name="target_date" type="date" />
+      <Submit>Add goal</Submit>
+    </CaptureForm>
   );
 }
 
@@ -666,22 +898,6 @@ function TimelineView({
   );
 }
 
-function QuickCapture() {
-  return (
-    <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 md:p-6 xl:col-span-2">
-      <SectionKicker>Add to almanac</SectionKicker>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <InlineNoteForm />
-        <InlineGoalForm />
-        <InlineTaskForm />
-        <InlineActivityForm />
-        <InlineAwardForm />
-        <DocumentForm />
-      </div>
-    </section>
-  );
-}
-
 function InlineNoteForm() {
   return (
     <CaptureForm action={createNote} icon={<PenLine size={16} />} title="Reflection note">
@@ -693,25 +909,6 @@ function InlineNoteForm() {
   );
 }
 
-function InlineGoalForm() {
-  return (
-    <CaptureForm action={createGoal} icon={<Sparkles size={16} />} title="Goal">
-      <TextInput name="title" placeholder="Finish first Common App essay draft" required />
-      <TextInput name="target_date" type="date" />
-      <Submit>Add goal</Submit>
-    </CaptureForm>
-  );
-}
-
-function InlineTaskForm() {
-  return (
-    <CaptureForm action={createTask} icon={<CalendarClock size={16} />} title="Task">
-      <TextInput name="title" placeholder="Ask teacher for recommendation" required />
-      <TextInput name="due_date" type="date" />
-      <Submit>Add task</Submit>
-    </CaptureForm>
-  );
-}
 
 function InlineActivityForm() {
   return (
@@ -727,32 +924,7 @@ function InlineActivityForm() {
   );
 }
 
-function InlineAwardForm() {
-  return (
-    <CaptureForm action={createAward} icon={<Trophy size={16} />} title="Award">
-      <TextInput name="name" placeholder="National Merit Semifinalist" required />
-      <div className="grid gap-2 sm:grid-cols-2">
-        <TextInput name="scope" placeholder="National, regional..." />
-        <TextInput name="year" placeholder="2026" />
-      </div>
-      <Submit>Add award</Submit>
-    </CaptureForm>
-  );
-}
 
-function DocumentForm() {
-  return (
-    <CaptureForm action={uploadDocument} icon={<FileUp size={16} />} title="Document">
-      <input
-        className="min-h-11 rounded-lg border border-[color:var(--almanac-rule)] bg-white/60 px-3 py-2 text-sm outline-none focus:border-[color:var(--almanac-olive)]"
-        name="file"
-        required
-        type="file"
-      />
-      <Submit>Upload</Submit>
-    </CaptureForm>
-  );
-}
 
 function CaptureForm({
   action,
@@ -812,11 +984,11 @@ function ProgressRings({
 }: {
   rings: Array<{ count: number; goal: number; color: string }>;
 }) {
-  const size = 224;
-  const ringWidth = 18;
-  const radii = [101, 77, 53];
+  const size = 200;
+  const ringWidth = 14;
+  const radii = [88, 66, 44];
   return (
-    <svg height={size} viewBox={`0 0 ${size} ${size}`} width={size}>
+    <svg className="h-full w-full" viewBox={`0 0 ${size} ${size}`}>
       {rings.map((ring, index) => {
         const r = radii[index];
         const circumference = 2 * Math.PI * r;
@@ -956,15 +1128,7 @@ function PageHeader({
           </p>
         ) : null}
       </div>
-      <div className="flex items-center gap-3">
-        {action}
-        <form action={signOut}>
-          <button className="inline-flex h-11 items-center gap-2 rounded-full border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] px-4 text-sm font-medium">
-            <LogOut size={15} />
-            Sign out
-          </button>
-        </form>
-      </div>
+      {action ? <div className="flex items-center gap-3">{action}</div> : null}
     </header>
   );
 }
@@ -975,23 +1139,11 @@ function Brand() {
       <span className="flex size-9 items-center justify-center rounded-full bg-[color:var(--almanac-ink)] font-serif text-xl italic text-[color:var(--almanac-paper)]">
         c
       </span>
-      <div className="leading-none">
-        <p className="font-serif text-2xl italic">almanac</p>
-        <p className="mt-1 text-[0.65rem] uppercase tracking-[0.18em] text-[color:var(--almanac-ink-soft)]">
-          cultvr · vol. i
-        </p>
-      </div>
+      <p className="font-serif text-2xl italic">cultvr</p>
     </div>
   );
 }
 
-function Avatar({ email }: { email: string | null }) {
-  return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--almanac-sage)] text-sm font-semibold text-[color:var(--almanac-paper)]">
-      {initials(email)}
-    </span>
-  );
-}
 
 function AddButton({
   label,
@@ -1055,12 +1207,6 @@ function getDisplayName(email: string | null) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function initials(email: string | null) {
-  const display = getDisplayName(email);
-  const parts = display.split(" ").filter(Boolean);
-  return (parts[0]?.[0] ?? "S") + (parts[1]?.[0] ?? "");
 }
 
 function shortDate(date: string | null) {
