@@ -59,6 +59,8 @@ export type ProfilePreferences = {
   nav_layout: "left" | "top";
   nav_collapsed: boolean;
   top_nav_collapsed: boolean;
+  appearance: "paper" | "dark";
+  font_family: "serif" | "sans";
 };
 
 export type GuidedSession = {

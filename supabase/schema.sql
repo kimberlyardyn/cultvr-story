@@ -9,6 +9,10 @@ create table if not exists public.profiles (
     check (nav_layout in ('left', 'top')),
   nav_collapsed boolean not null default false,
   top_nav_collapsed boolean not null default false,
+  appearance text not null default 'paper'
+    check (appearance in ('paper', 'dark')),
+  font_family text not null default 'serif'
+    check (font_family in ('serif', 'sans')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -24,6 +28,12 @@ alter table public.profiles
 
 alter table public.profiles
   add column if not exists top_nav_collapsed boolean not null default false;
+
+alter table public.profiles
+  add column if not exists appearance text not null default 'paper';
+
+alter table public.profiles
+  add column if not exists font_family text not null default 'serif';
 
 create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),

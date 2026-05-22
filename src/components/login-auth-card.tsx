@@ -73,7 +73,7 @@ export function LoginAuthCard({ message }: LoginAuthCardProps) {
           </div>
         ) : null}
 
-        <form action={action} className="mt-5 grid gap-4">
+        <form action={action} className="mt-5 grid content-start gap-4 min-h-[20.5rem]">
           {mode === "signup" ? (
             <Field
               autoComplete="name"
@@ -83,7 +83,9 @@ export function LoginAuthCard({ message }: LoginAuthCardProps) {
               placeholder="Your name"
               required
             />
-          ) : null}
+          ) : (
+            <FieldSpacer />
+          )}
 
           <Field
             autoComplete="email"
@@ -106,7 +108,9 @@ export function LoginAuthCard({ message }: LoginAuthCardProps) {
               required
               type="password"
             />
-          ) : null}
+          ) : (
+            <FieldSpacer />
+          )}
 
           <button className="mt-1 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#1F2433] px-5 text-sm font-medium text-[#F6F0E8] transition hover:bg-[#0F1322]">
             {mode === "signup" ? "Create account" : mode === "magic" ? "Send magic link" : "Sign in"}
@@ -114,7 +118,7 @@ export function LoginAuthCard({ message }: LoginAuthCardProps) {
           </button>
         </form>
 
-        <p className="mt-5 text-sm leading-6 text-[#1F2433]/62">
+        <p className="mt-5 min-h-[3rem] text-sm leading-6 text-[#1F2433]/62">
           {mode === "signup"
             ? "You may need to confirm your email before entering the workspace."
             : mode === "magic"
@@ -124,6 +128,12 @@ export function LoginAuthCard({ message }: LoginAuthCardProps) {
       </div>
     </section>
   );
+}
+
+function FieldSpacer() {
+  // Invisible placeholder that takes up the same vertical space as a Field —
+  // keeps the form layout stable when fields appear/disappear between modes.
+  return <span aria-hidden="true" className="block h-[4.75rem]" />;
 }
 
 function Field({

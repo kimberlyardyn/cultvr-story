@@ -36,3 +36,57 @@ select {
 button {
   cursor: pointer;
 }
+
+/* Font preference: when sans is selected, override .font-serif within the workspace */
+[data-cultvr-font="sans"] .font-serif,
+[data-cultvr-font="sans"] [class*="font-serif"] {
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif !important;
+  font-style: normal !important;
+  letter-spacing: -0.01em;
+}
+
+/* ===== Dark mode adjustments =====
+   In paper mode, several components use an "inverted card" pattern —
+   `bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]` — to draw
+   attention with a dark card on a light page. In dark mode, naively inverting
+   --almanac-ink to light would flip those cards to cream-on-dark, which both
+   looks out of place and breaks the contained `text-white/N` paragraphs.
+
+   Instead we keep those cards DARK in dark mode (a slightly raised navy) and
+   force the inner text colors to remain light. `!important` is required because
+   Tailwind utility specificity is (0,1,0) and ours is (0,2,1) — equal in the
+   compiled CSS — so we need the cascade winner. */
+
+/* 1. Inverted cards stay dark (slightly lighter than the page for raised effect). */
+[data-cultvr-appearance="dark"] .bg-\[color\:var\(--almanac-ink\)\] {
+  background-color: #262A3B !important;
+}
+
+/* 2. Force light text inside those cards (and on the same element as the bg)
+      regardless of the Tailwind class. */
+[data-cultvr-appearance="dark"] .bg-\[color\:var\(--almanac-ink\)\].text-\[color\:var\(--almanac-paper\)\],
+[data-cultvr-appearance="dark"] .bg-\[color\:var\(--almanac-ink\)\] .text-\[color\:var\(--almanac-paper\)\],
+[data-cultvr-appearance="dark"] .bg-\[color\:var\(--almanac-ink\)\] [class*="text-[color:var(--almanac-paper)"] {
+  color: #ECE6E0 !important;
+}
+
+/* 3. Translucent white surface fills (inputs, hover overlays on paper-bg cards)
+      become subtle ink overlays so they stay visible on the dark page. */
+[data-cultvr-appearance="dark"] [class*="bg-white/"] {
+  background-color: rgba(236, 230, 224, 0.06) !important;
+}
+[data-cultvr-appearance="dark"] [class*="hover\\:bg-white/"]:hover {
+  background-color: rgba(236, 230, 224, 0.12) !important;
+}
+
+/* 4. Native form controls follow the inverted palette and use dark color-scheme. */
+[data-cultvr-appearance="dark"] input,
+[data-cultvr-appearance="dark"] textarea,
+[data-cultvr-appearance="dark"] select {
+  color: var(--almanac-ink);
+  color-scheme: dark;
+}
+[data-cultvr-appearance="dark"] input::placeholder,
+[data-cultvr-appearance="dark"] textarea::placeholder {
+  color: var(--almanac-ink-soft);
+}

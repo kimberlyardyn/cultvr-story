@@ -6,6 +6,7 @@ import {
   Compass,
   Leaf,
   LogOut,
+  Moon,
   NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
@@ -14,8 +15,9 @@ import {
   Plus,
   ListTodo,
   Settings,
+  Sun,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { signOut } from "@/app/actions";
@@ -56,18 +58,33 @@ type AlmanacWorkspaceProps = {
   initialTab?: string;
 };
 
-const palette = {
-  paper: "#ECE6E0",
-  paperDeep: "#DFD7CF",
-  ink: "#1F2433",
-  inkSoft: "rgba(31,36,51,0.64)",
-  inkFaint: "rgba(31,36,51,0.16)",
-  rule: "rgba(31,36,51,0.11)",
-  olive: "#3F4A66",
-  sage: "#7A86A8",
-  clay: "#C97A5D",
-  butter: "#E0B26B",
-};
+const palettes = {
+  paper: {
+    paper: "#ECE6E0",
+    paperDeep: "#DFD7CF",
+    ink: "#1F2433",
+    inkSoft: "rgba(31,36,51,0.64)",
+    inkFaint: "rgba(31,36,51,0.16)",
+    rule: "rgba(31,36,51,0.11)",
+    olive: "#3F4A66",
+    sage: "#7A86A8",
+    clay: "#C97A5D",
+    butter: "#E0B26B",
+  },
+  dark: {
+    paper: "#1A1D28",
+    paperDeep: "#10131C",
+    ink: "#ECE6E0",
+    inkSoft: "rgba(236,230,224,0.66)",
+    inkFaint: "rgba(236,230,224,0.18)",
+    rule: "rgba(236,230,224,0.12)",
+    olive: "#9FB1D9",
+    sage: "#A8B5D6",
+    clay: "#E89978",
+    butter: "#F0C988",
+  },
+} as const;
+const palette = palettes.paper;
 
 const nav = [
   { id: "overview", label: "Dashboard", icon: BookOpen },
@@ -112,45 +129,81 @@ export function AlmanacWorkspace({
   const [customName, setCustomNameState] = useState(
     profile?.display_name?.trim() || profile?.full_name?.trim() || "",
   );
+  const [appearance, setAppearanceState] = useState<"paper" | "dark">(
+    profile?.appearance === "dark" ? "dark" : "paper",
+  );
+  const [fontFamily, setFontFamilyState] = useState<"serif" | "sans">(
+    profile?.font_family === "sans" ? "sans" : "serif",
+  );
+
+  const activePalette = palettes[appearance];
 
   useEffect(() => {
     if (profile) return;
     const saved = localStorage.getItem("cultvr-nav-layout");
     const savedCollapsed = localStorage.getItem("cultvr-nav-collapsed");
     const savedTopCollapsed = localStorage.getItem("cultvr-top-nav-collapsed");
+    const savedAppearance = localStorage.getItem("cultvr-appearance");
+    const savedFont = localStorage.getItem("cultvr-font-family");
     if (saved === "left" || saved === "top") setNavLayoutState(saved); // eslint-disable-line react-hooks/set-state-in-effect
     if (savedCollapsed === "true") setNavCollapsedState(true);
     if (savedTopCollapsed === "true") setTopNavCollapsedState(true);
+    if (savedAppearance === "paper" || savedAppearance === "dark") setAppearanceState(savedAppearance);
+    if (savedFont === "serif" || savedFont === "sans") setFontFamilyState(savedFont);
   }, [profile]);
 
-  function persistProfilePreferences(input: Parameters<typeof updateProfilePreferences>[0]) {
-    void updateProfilePreferences(input).catch(() => undefined);
+  // Await the server action so it actually completes before any subsequent
+  // navigation (e.g. clicking Sign out) can cancel the in-flight request.
+  // Errors are surfaced to the console for diagnosis rather than swallowed.
+  async function persistProfilePreferences(
+    input: Parameters<typeof updateProfilePreferences>[0],
+  ) {
+    try {
+      const result = await updateProfilePreferences(input);
+      if (result && "ok" in result && !result.ok) {
+        console.error("Profile preference save failed:", result.error);
+      }
+    } catch (err) {
+      console.error("Profile preference save threw:", err);
+    }
   }
 
-  const setNavLayout = (v: "left" | "top") => {
+  const setNavLayout = async (v: "left" | "top") => {
     setNavLayoutState(v);
     localStorage.setItem("cultvr-nav-layout", v);
-    persistProfilePreferences({ navLayout: v });
+    await persistProfilePreferences({ navLayout: v });
     setPrefsOpen(false);
   };
 
-  const setNavCollapsed = (value: boolean) => {
+  const setNavCollapsed = async (value: boolean) => {
     setNavCollapsedState(value);
     localStorage.setItem("cultvr-nav-collapsed", String(value));
-    persistProfilePreferences({ navCollapsed: value });
+    await persistProfilePreferences({ navCollapsed: value });
     setPrefsOpen(false);
   };
 
-  const setTopNavCollapsed = (value: boolean) => {
+  const setTopNavCollapsed = async (value: boolean) => {
     setTopNavCollapsedState(value);
     localStorage.setItem("cultvr-top-nav-collapsed", String(value));
-    persistProfilePreferences({ topNavCollapsed: value });
+    await persistProfilePreferences({ topNavCollapsed: value });
     setPrefsOpen(false);
   };
 
-  const setCustomName = (value: string) => {
+  const setCustomName = async (value: string) => {
     setCustomNameState(value);
-    persistProfilePreferences({ displayName: value });
+    await persistProfilePreferences({ displayName: value });
+  };
+
+  const setAppearance = async (value: "paper" | "dark") => {
+    setAppearanceState(value);
+    localStorage.setItem("cultvr-appearance", value);
+    await persistProfilePreferences({ appearance: value });
+  };
+
+  const setFontFamily = async (value: "serif" | "sans") => {
+    setFontFamilyState(value);
+    localStorage.setItem("cultvr-font-family", value);
+    await persistProfilePreferences({ fontFamily: value });
   };
 
   const setTab = (next: Tab) => {
@@ -174,19 +227,21 @@ export function AlmanacWorkspace({
   return (
     <main
       className="min-h-[100dvh] overflow-x-hidden text-[color:var(--almanac-ink)] lg:h-[100dvh] lg:overflow-hidden"
+      data-cultvr-font={fontFamily}
+      data-cultvr-appearance={appearance}
       style={
         {
-          "--almanac-paper": palette.paper,
-          "--almanac-paper-deep": palette.paperDeep,
-          "--almanac-ink": palette.ink,
-          "--almanac-ink-soft": palette.inkSoft,
-          "--almanac-rule": palette.rule,
-          "--almanac-olive": palette.olive,
-          "--almanac-sage": palette.sage,
-          "--almanac-clay": palette.clay,
-          "--almanac-butter": palette.butter,
-          backgroundColor: palette.paper,
-          backgroundImage: `radial-gradient(${palette.inkFaint} 0.6px, transparent 0.6px), radial-gradient(${palette.inkFaint} 0.5px, transparent 0.5px)`,
+          "--almanac-paper": activePalette.paper,
+          "--almanac-paper-deep": activePalette.paperDeep,
+          "--almanac-ink": activePalette.ink,
+          "--almanac-ink-soft": activePalette.inkSoft,
+          "--almanac-rule": activePalette.rule,
+          "--almanac-olive": activePalette.olive,
+          "--almanac-sage": activePalette.sage,
+          "--almanac-clay": activePalette.clay,
+          "--almanac-butter": activePalette.butter,
+          backgroundColor: activePalette.paper,
+          backgroundImage: `radial-gradient(${activePalette.inkFaint} 0.6px, transparent 0.6px), radial-gradient(${activePalette.inkFaint} 0.5px, transparent 0.5px)`,
           backgroundPosition: "0 0, 7px 11px",
           backgroundSize: "14px 14px, 22px 22px",
         } as React.CSSProperties
@@ -264,11 +319,15 @@ export function AlmanacWorkspace({
                   {navCollapsed ? null : "Settings"}
                 </button>
                 <PrefsPopup
+                  appearance={appearance}
                   customName={customName}
                   direction="up"
+                  fontFamily={fontFamily}
                   navLayout={navLayout}
                   open={prefsOpen}
+                  setAppearance={setAppearance}
                   setCustomName={setCustomName}
+                  setFontFamily={setFontFamily}
                   setNavLayout={setNavLayout}
                 />
               </div>
@@ -288,10 +347,14 @@ export function AlmanacWorkspace({
           </aside>
         ) : (
           <TopBar
+            appearance={appearance}
             customName={customName}
+            fontFamily={fontFamily}
             navLayout={navLayout}
             prefsOpen={prefsOpen}
+            setAppearance={setAppearance}
             setCustomName={setCustomName}
+            setFontFamily={setFontFamily}
             setNavLayout={setNavLayout}
             setPrefsOpen={setPrefsOpen}
             setTopNavCollapsed={setTopNavCollapsed}
@@ -303,10 +366,14 @@ export function AlmanacWorkspace({
 
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           <MobileBar
+            appearance={appearance}
             customName={customName}
+            fontFamily={fontFamily}
             navLayout={navLayout}
             prefsOpen={prefsOpen}
+            setAppearance={setAppearance}
             setCustomName={setCustomName}
+            setFontFamily={setFontFamily}
             setNavLayout={setNavLayout}
             setPrefsOpen={setPrefsOpen}
             setTab={setTab}
@@ -350,17 +417,86 @@ function PrefsPopup({
   setNavLayout,
   customName,
   setCustomName,
+  appearance,
+  setAppearance,
+  fontFamily,
+  setFontFamily,
 }: {
   open: boolean;
   direction: "up" | "down";
   navLayout: "left" | "top";
-  setNavLayout: (v: "left" | "top") => void;
+  setNavLayout: (v: "left" | "top") => void | Promise<void>;
   customName: string;
-  setCustomName: (v: string) => void;
+  setCustomName: (v: string) => void | Promise<void>;
+  appearance: "paper" | "dark";
+  setAppearance: (v: "paper" | "dark") => void | Promise<void>;
+  fontFamily: "serif" | "sans";
+  setFontFamily: (v: "serif" | "sans") => void | Promise<void>;
 }) {
   const [nameInput, setNameInput] = useState(customName);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
-  const posClass = direction === "up" ? "bottom-full left-0 mb-2" : "top-full right-0 mt-1";
+  // Keep the input in sync if customName updates from outside (e.g. profile reload).
+  // React-canonical "derive state from prop" pattern — compare against a tracked
+  // copy of the prop and only push the new value when it actually changes.
+  const [lastSeenCustomName, setLastSeenCustomName] = useState(customName);
+  if (lastSeenCustomName !== customName) {
+    setLastSeenCustomName(customName);
+    setNameInput(customName);
+  }
+
+  async function handleSaveName() {
+    if (saveState === "saving") return;
+    setSaveState("saving");
+    try {
+      await setCustomName(nameInput);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 1400);
+    } catch {
+      setSaveState("idle");
+    }
+  }
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = popupRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    const measure = () => {
+      const rect = parent.getBoundingClientRect();
+      const popupWidth = el.offsetWidth;
+      const popupHeight = el.offsetHeight;
+      const margin = 8;
+      let top: number;
+      let left: number;
+      if (direction === "up") {
+        top = rect.top - popupHeight - margin;
+        left = rect.left;
+      } else {
+        top = rect.bottom + 4;
+        left = rect.right - popupWidth;
+      }
+      // Keep within viewport
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      left = Math.max(8, Math.min(left, vw - popupWidth - 8));
+      top = Math.max(8, Math.min(top, vh - popupHeight - 8));
+      setCoords({ top, left });
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [open, direction]);
+
   const slideClass = open
     ? "translate-y-0 opacity-100 pointer-events-auto"
     : direction === "up"
@@ -370,47 +506,119 @@ function PrefsPopup({
   return (
     <div
       className={[
-        "absolute z-50 w-60 rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-4 text-[0.875rem] shadow-xl transition-all duration-150",
-        posClass,
+        "fixed z-50 w-[20rem] max-w-[calc(100vw-1rem)] rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 text-[0.875rem] shadow-xl transition-all duration-150",
         slideClass,
       ].join(" ")}
       onClick={(e) => e.stopPropagation()}
+      ref={popupRef}
+      style={
+        coords
+          ? { top: coords.top, left: coords.left }
+          : { top: -9999, left: -9999, visibility: open ? "hidden" : undefined }
+      }
     >
-      <p className="mb-3 text-[0.68rem] font-medium uppercase tracking-[0.16em] text-[color:var(--almanac-ink-soft)]">
-        Settings
+      <p className="mb-4 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--almanac-ink-soft)]">
+        Preferences
       </p>
 
-      <div>
+      {/* Display name */}
+      <div className="pb-4">
         <p className="mb-1.5 text-[0.74rem] font-medium text-[color:var(--almanac-ink-soft)]">
           Display name
         </p>
-        <input
-          className="h-9 w-full rounded-lg border border-[color:var(--almanac-rule)] bg-white/60 px-3 text-[0.88rem] font-medium outline-none placeholder:text-[color:var(--almanac-ink-soft)] focus:border-[color:var(--almanac-olive)]"
-          onChange={(e) => setNameInput(e.target.value)}
-          placeholder="Your name"
-          type="text"
-          value={nameInput}
-        />
-        <button
-          className="mt-1.5 h-8 w-full rounded-lg bg-[color:var(--almanac-ink)] text-[0.75rem] font-medium text-[color:var(--almanac-paper)]"
-          onClick={() => setCustomName(nameInput)}
-          type="button"
-        >
-          Save
-        </button>
+        <div className="flex gap-2">
+          <input
+            className="h-9 flex-1 rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] px-3 text-[0.88rem] font-medium text-[color:var(--almanac-ink)] outline-none placeholder:text-[color:var(--almanac-ink-soft)] focus:border-[color:var(--almanac-olive)]"
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="Your name"
+            type="text"
+            value={nameInput}
+          />
+          <button
+            className="h-9 min-w-[3.5rem] rounded-lg bg-[color:var(--almanac-ink)] px-3 text-[0.75rem] font-medium text-[color:var(--almanac-paper)] transition disabled:opacity-70"
+            disabled={saveState === "saving"}
+            onClick={handleSaveName}
+            type="button"
+          >
+            {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Save"}
+          </button>
+        </div>
       </div>
 
-      <div className="mt-4">
-        <p className="mb-1.5 text-[0.74rem] font-medium text-[color:var(--almanac-ink-soft)]">
+      {/* Appearance */}
+      <div className="flex items-center justify-between border-t border-[color:var(--almanac-rule)] py-3.5">
+        <span className="text-[0.88rem] font-medium text-[color:var(--almanac-ink)]">
+          Appearance
+        </span>
+        <div className="flex gap-1 rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-0.5">
+          <button
+            aria-label="Paper"
+            className={[
+              "flex size-8 items-center justify-center rounded-md transition",
+              appearance === "paper"
+                ? "bg-[color:var(--almanac-paper)] text-[color:var(--almanac-ink)] shadow-sm"
+                : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+            ].join(" ")}
+            onClick={() => setAppearance("paper")}
+            title="Paper"
+            type="button"
+          >
+            <Sun size={16} strokeWidth={1.7} />
+          </button>
+          <button
+            aria-label="Dark"
+            className={[
+              "flex size-8 items-center justify-center rounded-md transition",
+              appearance === "dark"
+                ? "bg-[color:var(--almanac-paper)] text-[color:var(--almanac-ink)] shadow-sm"
+                : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+            ].join(" ")}
+            onClick={() => setAppearance("dark")}
+            title="Dark"
+            type="button"
+          >
+            <Moon size={16} strokeWidth={1.7} />
+          </button>
+        </div>
+      </div>
+
+      {/* Font */}
+      <div className="flex items-center justify-between border-t border-[color:var(--almanac-rule)] py-3.5">
+        <span className="text-[0.88rem] font-medium text-[color:var(--almanac-ink)]">
+          Font
+        </span>
+        <div className="flex gap-1 rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-0.5">
+          {(["serif", "sans"] as const).map((value) => (
+            <button
+              className={[
+                "rounded-md px-3 py-1.5 text-[0.78rem] font-medium transition",
+                fontFamily === value
+                  ? "bg-[color:var(--almanac-paper)] text-[color:var(--almanac-ink)] shadow-sm"
+                  : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+                value === "serif" ? "font-serif italic" : "",
+              ].join(" ")}
+              key={value}
+              onClick={() => setFontFamily(value)}
+              type="button"
+            >
+              {value === "serif" ? "Serif" : "Sans"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Layout */}
+      <div className="flex items-center justify-between border-t border-[color:var(--almanac-rule)] py-3.5">
+        <span className="text-[0.88rem] font-medium text-[color:var(--almanac-ink)]">
           Layout
-        </p>
-        <div className="flex gap-1.5">
+        </span>
+        <div className="flex gap-1 rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-0.5">
           {(["left", "top"] as const).map((layout) => (
             <button
               className={[
-                "rounded-md px-2.5 py-1 text-[0.75rem] font-medium transition",
+                "rounded-md px-3 py-1.5 text-[0.78rem] font-medium transition",
                 navLayout === layout
-                  ? "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]"
+                  ? "bg-[color:var(--almanac-paper)] text-[color:var(--almanac-ink)] shadow-sm"
                   : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
               ].join(" ")}
               key={layout}
@@ -437,17 +645,25 @@ function TopBar({
   setCustomName,
   setTopNavCollapsed,
   topNavCollapsed,
+  appearance,
+  setAppearance,
+  fontFamily,
+  setFontFamily,
 }: {
   tab: Tab;
   setTab: (t: Tab) => void;
   navLayout: "left" | "top";
   prefsOpen: boolean;
   setPrefsOpen: (fn: (v: boolean) => boolean) => void;
-  setNavLayout: (v: "left" | "top") => void;
+  setNavLayout: (v: "left" | "top") => void | Promise<void>;
   customName: string;
-  setCustomName: (v: string) => void;
-  setTopNavCollapsed: (v: boolean) => void;
+  setCustomName: (v: string) => void | Promise<void>;
+  setTopNavCollapsed: (v: boolean) => void | Promise<void>;
   topNavCollapsed: boolean;
+  appearance: "paper" | "dark";
+  setAppearance: (v: "paper" | "dark") => void | Promise<void>;
+  fontFamily: "serif" | "sans";
+  setFontFamily: (v: "serif" | "sans") => void | Promise<void>;
 }) {
   return (
     <header
@@ -473,10 +689,8 @@ function TopBar({
                   "flex items-center font-medium transition",
                   topNavCollapsed ? "gap-2 rounded-full px-3 py-2 text-[0.84rem]" : "text-sm",
                   active
-                    ? "text-[#111622]"
-                    : topNavCollapsed
-                      ? "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]"
-                      : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+                    ? "text-[color:var(--almanac-ink)]"
+                    : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
                 ].join(" ")}
                 key={item.id}
                 onClick={() => setTab(item.id)}
@@ -506,11 +720,15 @@ function TopBar({
               <Settings size={16} />
             </NavIconBtn>
             <PrefsPopup
+              appearance={appearance}
               customName={customName}
               direction="down"
+              fontFamily={fontFamily}
               navLayout={navLayout}
               open={prefsOpen}
+              setAppearance={setAppearance}
               setCustomName={setCustomName}
+              setFontFamily={setFontFamily}
               setNavLayout={setNavLayout}
             />
           </div>
@@ -986,15 +1204,23 @@ function MobileBar({
   setPrefsOpen,
   setTab,
   tab,
+  appearance,
+  setAppearance,
+  fontFamily,
+  setFontFamily,
 }: {
   customName: string;
   navLayout: "left" | "top";
   prefsOpen: boolean;
-  setCustomName: (v: string) => void;
-  setNavLayout: (v: "left" | "top") => void;
+  setCustomName: (v: string) => void | Promise<void>;
+  setNavLayout: (v: "left" | "top") => void | Promise<void>;
   setPrefsOpen: (fn: (v: boolean) => boolean) => void;
   setTab: (tab: Tab) => void;
   tab: Tab;
+  appearance: "paper" | "dark";
+  setAppearance: (v: "paper" | "dark") => void | Promise<void>;
+  fontFamily: "serif" | "sans";
+  setFontFamily: (v: "serif" | "sans") => void | Promise<void>;
 }) {
   return (
     <header className="border-b border-[color:var(--almanac-rule)] px-5 py-4 lg:hidden">
@@ -1011,11 +1237,15 @@ function MobileBar({
               <Settings size={18} />
             </button>
             <PrefsPopup
+              appearance={appearance}
               customName={customName}
               direction="down"
+              fontFamily={fontFamily}
               navLayout={navLayout}
               open={prefsOpen}
+              setAppearance={setAppearance}
               setCustomName={setCustomName}
+              setFontFamily={setFontFamily}
               setNavLayout={setNavLayout}
             />
           </div>

@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <section className="mx-auto grid min-h-[calc(100dvh-7rem)] w-full max-w-6xl items-start gap-8 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:py-10">
         <div className="flex flex-col justify-center">
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#1F2433]/60">
-            Secure student workspace
+            Student workspace
           </p>
           <h1 className="mt-5 max-w-xl font-serif text-4xl leading-none tracking-tight text-[#1F2433] sm:text-5xl">
             Continue your college planning.
@@ -42,8 +42,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               <p className="mt-1">Track next steps</p>
             </div>
             <div className="border-l border-[#1F2433]/14 pl-3">
-              <p className="font-serif text-xl text-[#1F2433]">Story</p>
-              <p className="mt-1">Shape material</p>
+              <p className="font-serif text-xl text-[#1F2433]">Apply</p>
+              <p className="mt-1">Shape materials</p>
             </div>
           </div>
         </div>

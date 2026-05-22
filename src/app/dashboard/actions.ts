@@ -75,6 +75,8 @@ const profilePreferencesSchema = z.object({
   navLayout: z.enum(["left", "top"]).optional(),
   navCollapsed: z.boolean().optional(),
   topNavCollapsed: z.boolean().optional(),
+  appearance: z.enum(["paper", "dark"]).optional(),
+  fontFamily: z.enum(["serif", "sans"]).optional(),
 });
 
 async function requireUser() {
@@ -303,14 +305,22 @@ export async function updateProfilePreferences(input: z.input<typeof profilePref
   if (typeof parsed.topNavCollapsed === "boolean") {
     updates.top_nav_collapsed = parsed.topNavCollapsed;
   }
+  if (parsed.appearance) updates.appearance = parsed.appearance;
+  if (parsed.fontFamily) updates.font_family = parsed.fontFamily;
 
-  const { error } = await supabase.from("profiles").upsert({
-    id: user.id,
-    ...updates,
-  });
+  // Upsert with explicit conflict target on the primary key so existing rows
+  // are updated rather than rejected as duplicates.
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({ id: user.id, ...updates }, { onConflict: "id" });
 
-  if (error) throw error;
+  if (error) {
+    console.error("updateProfilePreferences failed", error);
+    return { ok: false as const, error: error.message };
+  }
+
   revalidatePath("/dashboard");
+  return { ok: true as const };
 }
 
 export async function uploadDocument(formData: FormData) {

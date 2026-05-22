@@ -14,10 +14,7 @@ export function PublicNav() {
 
       <nav className="flex items-center gap-3 text-sm text-[#1F2433]/80 sm:gap-7">
         <Link className="transition hover:text-[#1F2433]" href="/about">
-          About
-        </Link>
-        <Link className="transition hover:text-[#1F2433]" href="/stories">
-          Stories
+          Learn more
         </Link>
         <Link
           className="rounded-full border border-[#1F2433]/10 px-3 py-2 text-[#1F2433] sm:px-4"

@@ -48,7 +48,7 @@ type DashboardViewProps = {
 
 const tabs: Array<{ id: DashboardTab; label: string; icon: typeof Sparkles }> = [
   { id: "continue", label: "Workspace", icon: Sparkles },
-  { id: "story-activities", label: "Story & Activities", icon: BookOpen },
+  { id: "story-activities", label: "Activities", icon: BookOpen },
   { id: "weekly-plan", label: "Weekly Plan", icon: ListTodo },
   { id: "college-list", label: "College List", icon: School },
   { id: "application-readiness", label: "Application Readiness", icon: GraduationCap },
@@ -409,33 +409,33 @@ function SmallPanel({ children, label }: { children: ReactNode; label: string })
 function ProfileDepthOverview({ depth }: { depth: ProfileDepth }) {
   return (
     <section className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] p-5 md:p-6">
-      <div className="grid items-center gap-7 md:grid-cols-[15rem_1fr]">
+      <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[color:var(--almanac-ink-soft)]">
+        Profile depth
+      </p>
+      <div className="mt-4 grid items-center gap-7 md:grid-cols-[15rem_1fr]">
         <div className="relative mx-auto size-52">
           <ProgressRings rings={depth.breakdown} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
             <p className="font-serif text-4xl leading-none text-[color:var(--almanac-ink)]">
               {depth.value}%
-            </p>
-            <p className="mt-1 text-[0.65rem] uppercase tracking-[0.18em] text-[color:var(--almanac-ink-soft)]">
-              Profile depth
             </p>
           </div>
         </div>
         <div>
-          <div className="mt-3 grid gap-3">
+          <div className="grid gap-3">
             {depth.breakdown.map((item) => {
               const progress = Math.min((item.current / item.goal) * 100, 100);
 
               return (
                 <div className="flex items-center gap-4" key={item.label}>
-                  <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="font-serif text-xl italic leading-tight text-[color:var(--almanac-ink)]">
                         {item.label}
                       </p>
                       <p className="text-xs text-[color:var(--almanac-ink-soft)]">
-                        {item.current} of {item.goal} - {item.note}
+                        {item.current} of {item.goal} · {item.note}
                       </p>
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/10">
@@ -525,7 +525,7 @@ function KnowledgeGraphPanel({ graph }: { graph: KnowledgeGraph }) {
                 </feMerge>
               </filter>
             </defs>
-            {graph.links.map((link) => {
+            {graph.links.map((link, index) => {
               const source = nodeMap.get(link.source);
               const target = nodeMap.get(link.target);
               if (!source || !target) return null;
@@ -534,7 +534,7 @@ function KnowledgeGraphPanel({ graph }: { graph: KnowledgeGraph }) {
               return (
                 <path
                   d={`M ${source.x} ${source.y} Q ${midpointX} ${midpointY} ${target.x} ${target.y}`}
-                  key={`${link.source}-${link.target}`}
+                  key={`${link.source}-${link.target}-${index}`}
                   fill="none"
                   stroke="rgba(236,242,255,0.48)"
                   strokeLinecap="round"
@@ -1146,9 +1146,17 @@ function buildKnowledgeGraph({
         })),
     );
 
+  const seenLinks = new Set<string>();
+  const dedupedLinks = [...links, ...themeLinks].filter((link) => {
+    const key = `${link.source}-${link.target}`;
+    if (seenLinks.has(key)) return false;
+    seenLinks.add(key);
+    return true;
+  });
+
   return {
     nodes,
-    links: [...links, ...themeLinks].slice(0, 10),
+    links: dedupedLinks.slice(0, 10),
   };
 }
 

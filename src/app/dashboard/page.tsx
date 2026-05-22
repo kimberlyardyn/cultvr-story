@@ -46,7 +46,7 @@ export default async function DashboardPage({
   const [profile, notes, goals, tasks, activities, awards, collegeList, guidedSessions] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name,display_name,nav_layout,nav_collapsed,top_nav_collapsed")
+      .select("full_name,display_name,nav_layout,nav_collapsed,top_nav_collapsed,appearance,font_family")
       .eq("id", user.id)
       .maybeSingle(),
     supabase

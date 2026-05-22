@@ -258,7 +258,7 @@ export function GuidedSessionsView({ notes }: { notes: Note[] }) {
 
         <section className="grid min-w-0 gap-5">
           <div className="rounded-2xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-ink)] p-5 text-[color:var(--almanac-paper)] md:p-6">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex flex-col-reverse gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-5">
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-white/60">
                   {mode === "review"
@@ -267,17 +267,17 @@ export function GuidedSessionsView({ notes }: { notes: Note[] }) {
                       ? "Live session"
                       : `Chat question ${promptIndex + 1} of ${selected.prompts.length}`}
                 </p>
-                <h2 className="mt-2 font-serif text-4xl leading-tight">
+                <h2 className="mt-2 font-serif text-2xl leading-tight sm:text-3xl md:text-4xl">
                   {selected.label}
                 </h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-white/72">
+                <p className="mt-2 max-w-xl text-xs leading-5 text-white/72 md:mt-3 md:text-sm md:leading-6">
                   {selected.focus}
                 </p>
               </div>
               <button
                 aria-label={`Switch to ${interactionMode === "voice" ? "chat" : "voice"} mode`}
                 aria-pressed={interactionMode === "voice"}
-                className="relative inline-flex h-11 w-36 items-center rounded-full border border-white/15 bg-white/5 p-1 text-sm font-medium text-white/75 transition hover:bg-white/10"
+                className="relative inline-flex h-10 w-full max-w-[14rem] shrink-0 items-center self-start rounded-full border border-white/15 bg-white/5 p-1 text-sm font-medium text-white/75 transition hover:bg-white/10 xl:h-11 xl:w-36"
                 onClick={() =>
                   activateInteraction(interactionMode === "voice" ? "chat" : "voice")
                 }
