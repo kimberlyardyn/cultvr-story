@@ -35,6 +35,22 @@ alter table public.profiles
 alter table public.profiles
   add column if not exists font_family text not null default 'serif';
 
+create table if not exists public.student_admissions_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade default auth.uid(),
+  grade_level text,
+  application_stage text,
+  intended_majors text[] not null default '{}'::text[],
+  interests text[] not null default '{}'::text[],
+  current_priorities text[] not null default '{}'::text[],
+  target_colleges text[] not null default '{}'::text[],
+  important_deadlines text,
+  coaching_style text not null default 'encouraging'
+    check (coaching_style in ('direct', 'encouraging', 'structured', 'exploratory')),
+  personality_notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
@@ -162,6 +178,33 @@ create table if not exists public.guided_session_turns (
   occurred_at timestamptz not null default now()
 );
 
+create table if not exists public.student_memories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  memory_type text not null
+    check (
+      memory_type in (
+        'theme',
+        'strength',
+        'gap',
+        'activity_evidence',
+        'essay_seed',
+        'college_fit',
+        'next_prompt',
+        'coaching_preference'
+      )
+    ),
+  label text not null,
+  summary text not null,
+  confidence numeric not null default 0.6
+    check (confidence >= 0 and confidence <= 1),
+  source_session_id uuid references public.guided_sessions(id) on delete set null,
+  status text not null default 'active'
+    check (status in ('active', 'archived', 'rejected')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists guided_sessions_user_created_idx
 on public.guided_sessions (user_id, created_at desc);
 
@@ -173,6 +216,12 @@ on public.guided_session_turns (session_id, occurred_at);
 
 create index if not exists college_list_user_updated_idx
 on public.college_list (user_id, updated_at desc);
+
+create index if not exists student_memories_user_created_idx
+on public.student_memories (user_id, created_at desc);
+
+create index if not exists student_memories_user_type_idx
+on public.student_memories (user_id, memory_type, status);
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -193,6 +242,8 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 alter table public.profiles enable row level security;
+alter table public.student_admissions_profiles enable row level security;
+alter table public.student_memories enable row level security;
 alter table public.notes enable row level security;
 alter table public.goals enable row level security;
 alter table public.tasks enable row level security;
@@ -219,6 +270,18 @@ create policy "profiles_update_own"
 on public.profiles for update
 using (auth.uid() = id)
 with check (auth.uid() = id);
+
+drop policy if exists "student_admissions_profiles_all_own" on public.student_admissions_profiles;
+create policy "student_admissions_profiles_all_own"
+on public.student_admissions_profiles for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "student_memories_all_own" on public.student_memories;
+create policy "student_memories_all_own"
+on public.student_memories for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 
 drop policy if exists "notes_all_own" on public.notes;
 create policy "notes_all_own"

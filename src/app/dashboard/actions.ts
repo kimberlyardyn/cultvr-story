@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { deriveMemoriesFromSession } from "@/lib/student-context";
 import { createClient } from "@/lib/supabase/server";
 
 const noteSchema = z.object({
@@ -77,6 +78,18 @@ const profilePreferencesSchema = z.object({
   topNavCollapsed: z.boolean().optional(),
   appearance: z.enum(["paper", "dark"]).optional(),
   fontFamily: z.enum(["serif", "sans"]).optional(),
+});
+
+const studentAdmissionsProfileSchema = z.object({
+  gradeLevel: z.string().max(60).optional(),
+  applicationStage: z.string().max(120).optional(),
+  intendedMajors: z.array(z.string().max(80)).max(12).optional(),
+  interests: z.array(z.string().max(80)).max(16).optional(),
+  currentPriorities: z.array(z.string().max(120)).max(10).optional(),
+  targetColleges: z.array(z.string().max(120)).max(20).optional(),
+  importantDeadlines: z.string().max(1000).optional(),
+  coachingStyle: z.enum(["direct", "encouraging", "structured", "exploratory"]).optional(),
+  personalityNotes: z.string().max(1200).optional(),
 });
 
 async function requireUser() {
@@ -212,6 +225,25 @@ export async function createGuidedSessionArtifacts(formData: FormData) {
     if (error) throw error;
   }
 
+  const inferredMemories = deriveMemoriesFromSession({
+    noteBody: parsed.note_body,
+    sessionId: sessionResult.data.id,
+    sessionLabel: parsed.session_label,
+    transcript: parsed.transcript,
+  });
+
+  if (inferredMemories.length) {
+    const { error } = await supabase.from("student_memories").insert(
+      inferredMemories.map((memory) => ({
+        ...memory,
+        user_id: user.id,
+      })),
+    );
+    if (error) {
+      console.error("student memory inference save failed", error);
+    }
+  }
+
   revalidatePath("/dashboard");
 }
 
@@ -316,6 +348,41 @@ export async function updateProfilePreferences(input: z.input<typeof profilePref
 
   if (error) {
     console.error("updateProfilePreferences failed", error);
+    return { ok: false as const, error: error.message };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true as const };
+}
+
+export async function updateStudentAdmissionsProfile(
+  input: z.input<typeof studentAdmissionsProfileSchema>,
+) {
+  const { supabase, user } = await requireUser();
+  const parsed = studentAdmissionsProfileSchema.parse(input);
+
+  const cleanList = (items: string[] | undefined) =>
+    (items ?? []).map((item) => item.trim()).filter(Boolean);
+
+  const { error } = await supabase.from("student_admissions_profiles").upsert(
+    {
+      user_id: user.id,
+      grade_level: parsed.gradeLevel?.trim() || null,
+      application_stage: parsed.applicationStage?.trim() || null,
+      intended_majors: cleanList(parsed.intendedMajors),
+      interests: cleanList(parsed.interests),
+      current_priorities: cleanList(parsed.currentPriorities),
+      target_colleges: cleanList(parsed.targetColleges),
+      important_deadlines: parsed.importantDeadlines?.trim() || null,
+      coaching_style: parsed.coachingStyle ?? "encouraging",
+      personality_notes: parsed.personalityNotes?.trim() || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) {
+    console.error("updateStudentAdmissionsProfile failed", error);
     return { ok: false as const, error: error.message };
   }
 

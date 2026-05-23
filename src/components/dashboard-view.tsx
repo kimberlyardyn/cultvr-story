@@ -30,6 +30,7 @@ import type {
   Goal,
   GuidedSession,
   Note,
+  StudentMemory,
   StudentTask,
 } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
@@ -44,6 +45,7 @@ type DashboardViewProps = {
   tasks: StudentTask[];
   activities: Activity[];
   collegeList: CollegeListEntry[];
+  studentMemories: StudentMemory[];
 };
 
 const tabs: Array<{ id: DashboardTab; label: string; icon: typeof Sparkles }> = [
@@ -73,6 +75,7 @@ export function DashboardView({
   guidedSessions,
   notes,
   onNavigateTab,
+  studentMemories,
   tasks,
   activities,
   collegeList,
@@ -84,11 +87,12 @@ export function DashboardView({
         goals,
         guidedSessions,
         notes,
+        studentMemories,
         tasks,
         activities,
         collegeList,
       }),
-    [activities, awards, collegeList, goals, guidedSessions, notes, tasks],
+    [activities, awards, collegeList, goals, guidedSessions, notes, studentMemories, tasks],
   );
   const [activeTab, setActiveTab] = useState<DashboardTab>("continue");
 
@@ -822,11 +826,19 @@ function buildDashboardModel({
   goals,
   guidedSessions,
   notes,
+  studentMemories,
   tasks,
   activities,
 }: Pick<
   DashboardViewProps,
-  "awards" | "collegeList" | "goals" | "guidedSessions" | "notes" | "tasks" | "activities"
+  | "awards"
+  | "collegeList"
+  | "goals"
+  | "guidedSessions"
+  | "notes"
+  | "studentMemories"
+  | "tasks"
+  | "activities"
 >): DashboardModel {
   const latestSession = guidedSessions[0];
   const guidedNotes = notes.filter((note) => note.category.toLowerCase().includes("guided"));
@@ -850,6 +862,7 @@ function buildDashboardModel({
   const knowledgeGraph = buildKnowledgeGraph({
     activities,
     collegeList: colleges,
+    memories: studentMemories,
     reflections,
     storySignals,
     weeklyActions,
@@ -1035,12 +1048,14 @@ function buildCollegeList(colleges: CollegeListEntry[]): CollegeListItem[] {
 function buildKnowledgeGraph({
   activities,
   collegeList,
+  memories,
   reflections,
   storySignals,
   weeklyActions,
 }: {
   activities: Activity[];
   collegeList: CollegeListItem[];
+  memories: StudentMemory[];
   reflections: ReflectionCard[];
   storySignals: StorySignal[];
   weeklyActions: WeeklyAction[];
@@ -1067,6 +1082,15 @@ function buildKnowledgeGraph({
     strength: college.priority === "High" ? 76 : college.priority === "Medium" ? 64 : 52,
     kind: "college" as const,
   }));
+  const memoryNodes = memories
+    .filter((memory) => memory.memory_type === "theme" || memory.memory_type === "essay_seed")
+    .slice(0, 2)
+    .map((memory) => ({
+      id: `memory-${slugify(memory.label)}`,
+      label: compactLabel(memory.label),
+      strength: Math.round(56 + memory.confidence * 32),
+      kind: memory.memory_type === "theme" ? ("theme" as const) : ("action" as const),
+    }));
   const actionNode =
     weeklyActions[0]
       ? [{
@@ -1076,7 +1100,7 @@ function buildKnowledgeGraph({
           kind: "action" as const,
         }]
       : [];
-  const nodes = [...topSignals, ...activityNodes, ...collegeNodes, ...actionNode].slice(0, 8);
+  const nodes = [...topSignals, ...memoryNodes, ...activityNodes, ...collegeNodes, ...actionNode].slice(0, 8);
 
   if (nodes.length < 4) return dashboardDemo.knowledgeGraph;
 

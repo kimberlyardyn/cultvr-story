@@ -21,7 +21,11 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { signOut } from "@/app/actions";
-import { createActivity, updateProfilePreferences } from "@/app/dashboard/actions";
+import {
+  createActivity,
+  updateProfilePreferences,
+  updateStudentAdmissionsProfile,
+} from "@/app/dashboard/actions";
 import { DashboardView } from "@/components/dashboard-view";
 import { GuidedSessionsView } from "@/components/guided-sessions-view";
 import type {
@@ -32,6 +36,8 @@ import type {
   GuidedSession,
   Note,
   ProfilePreferences,
+  StudentAdmissionsProfile,
+  StudentMemory,
   StudentTask,
 } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
@@ -55,6 +61,8 @@ type AlmanacWorkspaceProps = {
   awards: Award[];
   collegeList: CollegeListEntry[];
   profile: ProfilePreferences | null;
+  studentMemories: StudentMemory[];
+  studentProfile: StudentAdmissionsProfile | null;
   initialTab?: string;
 };
 
@@ -104,6 +112,8 @@ export function AlmanacWorkspace({
   awards,
   collegeList,
   profile,
+  studentMemories,
+  studentProfile,
   initialTab,
 }: AlmanacWorkspaceProps) {
   const router = useRouter();
@@ -135,6 +145,7 @@ export function AlmanacWorkspace({
   const [fontFamily, setFontFamilyState] = useState<"serif" | "sans">(
     profile?.font_family === "sans" ? "sans" : "serif",
   );
+  const [admissionsProfile, setAdmissionsProfileState] = useState(studentProfile);
 
   const activePalette = palettes[appearance];
 
@@ -204,6 +215,31 @@ export function AlmanacWorkspace({
     setFontFamilyState(value);
     localStorage.setItem("cultvr-font-family", value);
     await persistProfilePreferences({ fontFamily: value });
+  };
+
+  const setStudentProfile = async (
+    value: Parameters<typeof updateStudentAdmissionsProfile>[0],
+  ) => {
+    const now = new Date().toISOString();
+    setAdmissionsProfileState((current) => ({
+      user_id: current?.user_id ?? "",
+      grade_level: value.gradeLevel?.trim() || null,
+      application_stage: value.applicationStage?.trim() || null,
+      intended_majors: value.intendedMajors ?? [],
+      interests: value.interests ?? [],
+      current_priorities: value.currentPriorities ?? [],
+      target_colleges: value.targetColleges ?? [],
+      important_deadlines: value.importantDeadlines?.trim() || null,
+      coaching_style: value.coachingStyle ?? "encouraging",
+      personality_notes: value.personalityNotes?.trim() || null,
+      created_at: current?.created_at ?? now,
+      updated_at: now,
+    }));
+
+    const result = await updateStudentAdmissionsProfile(value);
+    if (result && "ok" in result && !result.ok) {
+      console.error("Student profile save failed:", result.error);
+    }
   };
 
   const setTab = (next: Tab) => {
@@ -329,6 +365,8 @@ export function AlmanacWorkspace({
                   setCustomName={setCustomName}
                   setFontFamily={setFontFamily}
                   setNavLayout={setNavLayout}
+                  setStudentProfile={setStudentProfile}
+                  studentProfile={admissionsProfile}
                 />
               </div>
               <form action={signOut}>
@@ -356,6 +394,8 @@ export function AlmanacWorkspace({
             setCustomName={setCustomName}
             setFontFamily={setFontFamily}
             setNavLayout={setNavLayout}
+            setStudentProfile={setStudentProfile}
+            studentProfile={admissionsProfile}
             setPrefsOpen={setPrefsOpen}
             setTopNavCollapsed={setTopNavCollapsed}
             setTab={setTab}
@@ -375,6 +415,8 @@ export function AlmanacWorkspace({
             setCustomName={setCustomName}
             setFontFamily={setFontFamily}
             setNavLayout={setNavLayout}
+            setStudentProfile={setStudentProfile}
+            studentProfile={admissionsProfile}
             setPrefsOpen={setPrefsOpen}
             setTab={setTab}
             tab={tab}
@@ -388,6 +430,7 @@ export function AlmanacWorkspace({
               guidedSessions={guidedSessions}
               notes={notes}
               onNavigateTab={(next) => setTab(next)}
+              studentMemories={studentMemories}
               tasks={tasks}
               activities={activities}
             />
@@ -415,6 +458,8 @@ function PrefsPopup({
   direction,
   navLayout,
   setNavLayout,
+  studentProfile,
+  setStudentProfile,
   customName,
   setCustomName,
   appearance,
@@ -426,6 +471,10 @@ function PrefsPopup({
   direction: "up" | "down";
   navLayout: "left" | "top";
   setNavLayout: (v: "left" | "top") => void | Promise<void>;
+  studentProfile: StudentAdmissionsProfile | null;
+  setStudentProfile: (
+    value: Parameters<typeof updateStudentAdmissionsProfile>[0],
+  ) => void | Promise<void>;
   customName: string;
   setCustomName: (v: string) => void | Promise<void>;
   appearance: "paper" | "dark";
@@ -435,6 +484,30 @@ function PrefsPopup({
 }) {
   const [nameInput, setNameInput] = useState(customName);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [studentSaveState, setStudentSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [gradeLevel, setGradeLevel] = useState(studentProfile?.grade_level ?? "");
+  const [applicationStage, setApplicationStage] = useState(
+    studentProfile?.application_stage ?? "",
+  );
+  const [intendedMajors, setIntendedMajors] = useState(
+    listToInput(studentProfile?.intended_majors),
+  );
+  const [interests, setInterests] = useState(listToInput(studentProfile?.interests));
+  const [currentPriorities, setCurrentPriorities] = useState(
+    listToInput(studentProfile?.current_priorities),
+  );
+  const [targetColleges, setTargetColleges] = useState(
+    listToInput(studentProfile?.target_colleges),
+  );
+  const [importantDeadlines, setImportantDeadlines] = useState(
+    studentProfile?.important_deadlines ?? "",
+  );
+  const [coachingStyle, setCoachingStyle] = useState<
+    "direct" | "encouraging" | "structured" | "exploratory"
+  >(studentProfile?.coaching_style ?? "encouraging");
+  const [personalityNotes, setPersonalityNotes] = useState(
+    studentProfile?.personality_notes ?? "",
+  );
 
   // Keep the input in sync if customName updates from outside (e.g. profile reload).
   // React-canonical "derive state from prop" pattern — compare against a tracked
@@ -443,6 +516,20 @@ function PrefsPopup({
   if (lastSeenCustomName !== customName) {
     setLastSeenCustomName(customName);
     setNameInput(customName);
+  }
+
+  const [lastSeenStudentProfile, setLastSeenStudentProfile] = useState(studentProfile);
+  if (lastSeenStudentProfile !== studentProfile) {
+    setLastSeenStudentProfile(studentProfile);
+    setGradeLevel(studentProfile?.grade_level ?? "");
+    setApplicationStage(studentProfile?.application_stage ?? "");
+    setIntendedMajors(listToInput(studentProfile?.intended_majors));
+    setInterests(listToInput(studentProfile?.interests));
+    setCurrentPriorities(listToInput(studentProfile?.current_priorities));
+    setTargetColleges(listToInput(studentProfile?.target_colleges));
+    setImportantDeadlines(studentProfile?.important_deadlines ?? "");
+    setCoachingStyle(studentProfile?.coaching_style ?? "encouraging");
+    setPersonalityNotes(studentProfile?.personality_notes ?? "");
   }
 
   async function handleSaveName() {
@@ -454,6 +541,28 @@ function PrefsPopup({
       setTimeout(() => setSaveState("idle"), 1400);
     } catch {
       setSaveState("idle");
+    }
+  }
+
+  async function handleSaveStudentProfile() {
+    if (studentSaveState === "saving") return;
+    setStudentSaveState("saving");
+    try {
+      await setStudentProfile({
+        applicationStage,
+        coachingStyle,
+        currentPriorities: inputToList(currentPriorities),
+        gradeLevel,
+        importantDeadlines,
+        intendedMajors: inputToList(intendedMajors),
+        interests: inputToList(interests),
+        personalityNotes,
+        targetColleges: inputToList(targetColleges),
+      });
+      setStudentSaveState("saved");
+      setTimeout(() => setStudentSaveState("idle"), 1400);
+    } catch {
+      setStudentSaveState("idle");
     }
   }
   const popupRef = useRef<HTMLDivElement>(null);
@@ -506,7 +615,7 @@ function PrefsPopup({
   return (
     <div
       className={[
-        "fixed z-50 w-[20rem] max-w-[calc(100vw-1rem)] rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 text-[0.875rem] shadow-xl transition-all duration-150",
+        "fixed z-50 max-h-[min(42rem,calc(100vh-1rem))] w-[20rem] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper)] p-5 text-[0.875rem] shadow-xl transition-all duration-150",
         slideClass,
       ].join(" ")}
       onClick={(e) => e.stopPropagation()}
@@ -607,6 +716,97 @@ function PrefsPopup({
         </div>
       </div>
 
+      {/* Student profile */}
+      <details className="border-t border-[color:var(--almanac-rule)] py-3.5">
+        <summary className="cursor-pointer list-none text-[0.88rem] font-medium text-[color:var(--almanac-ink)]">
+          Student profile
+        </summary>
+        <div className="mt-3 grid gap-2.5">
+          <SettingsInput
+            label="Grade/year"
+            onChange={setGradeLevel}
+            placeholder="11th grade"
+            value={gradeLevel}
+          />
+          <SettingsInput
+            label="Application stage"
+            onChange={setApplicationStage}
+            placeholder="Exploring, drafting, applying..."
+            value={applicationStage}
+          />
+          <SettingsInput
+            label="Interests"
+            onChange={setInterests}
+            placeholder="robotics, policy, design"
+            value={interests}
+          />
+          <SettingsInput
+            label="Possible majors"
+            onChange={setIntendedMajors}
+            placeholder="engineering, computer science"
+            value={intendedMajors}
+          />
+          <SettingsInput
+            label="Current priorities"
+            onChange={setCurrentPriorities}
+            placeholder="essay ideas, activity descriptions"
+            value={currentPriorities}
+          />
+          <SettingsInput
+            label="Colleges"
+            onChange={setTargetColleges}
+            placeholder="UC Berkeley, Northeastern"
+            value={targetColleges}
+          />
+          <SettingsTextArea
+            label="Deadlines"
+            onChange={setImportantDeadlines}
+            placeholder="Early action by Nov 1; UC by Dec 1"
+            value={importantDeadlines}
+          />
+          <div>
+            <p className="mb-1.5 text-[0.72rem] font-medium text-[color:var(--almanac-ink-soft)]">
+              Coaching style
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              {(["encouraging", "direct", "structured", "exploratory"] as const).map((style) => (
+                <button
+                  className={[
+                    "rounded-md border border-[color:var(--almanac-rule)] px-2 py-1.5 text-[0.72rem] capitalize transition",
+                    coachingStyle === style
+                      ? "bg-[color:var(--almanac-ink)] text-[color:var(--almanac-paper)]"
+                      : "text-[color:var(--almanac-ink-soft)] hover:text-[color:var(--almanac-ink)]",
+                  ].join(" ")}
+                  key={style}
+                  onClick={() => setCoachingStyle(style)}
+                  type="button"
+                >
+                  {style}
+                </button>
+              ))}
+            </div>
+          </div>
+          <SettingsTextArea
+            label="How should Cultvr adapt?"
+            onChange={setPersonalityNotes}
+            placeholder="I like specific examples and shorter questions."
+            value={personalityNotes}
+          />
+          <button
+            className="h-9 rounded-lg bg-[color:var(--almanac-ink)] px-3 text-[0.75rem] font-medium text-[color:var(--almanac-paper)] transition disabled:opacity-70"
+            disabled={studentSaveState === "saving"}
+            onClick={handleSaveStudentProfile}
+            type="button"
+          >
+            {studentSaveState === "saving"
+              ? "Saving..."
+              : studentSaveState === "saved"
+                ? "Saved"
+                : "Save student profile"}
+          </button>
+        </div>
+      </details>
+
       {/* Layout */}
       <div className="flex items-center justify-between border-t border-[color:var(--almanac-rule)] py-3.5">
         <span className="text-[0.88rem] font-medium text-[color:var(--almanac-ink)]">
@@ -634,6 +834,69 @@ function PrefsPopup({
   );
 }
 
+function SettingsInput({
+  label,
+  onChange,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-[0.72rem] font-medium text-[color:var(--almanac-ink-soft)]">
+        {label}
+      </span>
+      <input
+        className="h-9 rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] px-3 text-[0.82rem] text-[color:var(--almanac-ink)] outline-none placeholder:text-[color:var(--almanac-ink-soft)] focus:border-[color:var(--almanac-olive)]"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        value={value}
+      />
+    </label>
+  );
+}
+
+function SettingsTextArea({
+  label,
+  onChange,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-[0.72rem] font-medium text-[color:var(--almanac-ink-soft)]">
+        {label}
+      </span>
+      <textarea
+        className="min-h-20 resize-y rounded-lg border border-[color:var(--almanac-rule)] bg-[color:var(--almanac-paper-deep)] px-3 py-2 text-[0.82rem] leading-5 text-[color:var(--almanac-ink)] outline-none placeholder:text-[color:var(--almanac-ink-soft)] focus:border-[color:var(--almanac-olive)]"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        value={value}
+      />
+    </label>
+  );
+}
+
+function inputToList(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function listToInput(value: string[] | null | undefined) {
+  return value?.join(", ") ?? "";
+}
+
 function TopBar({
   tab,
   setTab,
@@ -641,8 +904,10 @@ function TopBar({
   setPrefsOpen,
   navLayout,
   setNavLayout,
+  setStudentProfile,
   customName,
   setCustomName,
+  studentProfile,
   setTopNavCollapsed,
   topNavCollapsed,
   appearance,
@@ -656,8 +921,12 @@ function TopBar({
   prefsOpen: boolean;
   setPrefsOpen: (fn: (v: boolean) => boolean) => void;
   setNavLayout: (v: "left" | "top") => void | Promise<void>;
+  setStudentProfile: (
+    value: Parameters<typeof updateStudentAdmissionsProfile>[0],
+  ) => void | Promise<void>;
   customName: string;
   setCustomName: (v: string) => void | Promise<void>;
+  studentProfile: StudentAdmissionsProfile | null;
   setTopNavCollapsed: (v: boolean) => void | Promise<void>;
   topNavCollapsed: boolean;
   appearance: "paper" | "dark";
@@ -730,6 +999,8 @@ function TopBar({
               setCustomName={setCustomName}
               setFontFamily={setFontFamily}
               setNavLayout={setNavLayout}
+              setStudentProfile={setStudentProfile}
+              studentProfile={studentProfile}
             />
           </div>
 
@@ -1201,8 +1472,10 @@ function MobileBar({
   prefsOpen,
   setCustomName,
   setNavLayout,
+  setStudentProfile,
   setPrefsOpen,
   setTab,
+  studentProfile,
   tab,
   appearance,
   setAppearance,
@@ -1214,8 +1487,12 @@ function MobileBar({
   prefsOpen: boolean;
   setCustomName: (v: string) => void | Promise<void>;
   setNavLayout: (v: "left" | "top") => void | Promise<void>;
+  setStudentProfile: (
+    value: Parameters<typeof updateStudentAdmissionsProfile>[0],
+  ) => void | Promise<void>;
   setPrefsOpen: (fn: (v: boolean) => boolean) => void;
   setTab: (tab: Tab) => void;
+  studentProfile: StudentAdmissionsProfile | null;
   tab: Tab;
   appearance: "paper" | "dark";
   setAppearance: (v: "paper" | "dark") => void | Promise<void>;
@@ -1247,6 +1524,8 @@ function MobileBar({
               setCustomName={setCustomName}
               setFontFamily={setFontFamily}
               setNavLayout={setNavLayout}
+              setStudentProfile={setStudentProfile}
+              studentProfile={studentProfile}
             />
           </div>
           <form action={signOut}>
@@ -1395,5 +1674,3 @@ function shortDate(date: string | null) {
     day: "numeric",
   }).format(new Date(date));
 }
-
-

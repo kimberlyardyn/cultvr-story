@@ -69,7 +69,18 @@ export function VoicePanel({
     setStatus("connecting");
 
     try {
-      const tokenResponse = await fetch("/api/realtime-token");
+      const tokenResponse = await fetch("/api/realtime-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentPrompt,
+          sessionFocus,
+          sessionPrompts,
+          sessionTitle,
+        }),
+      });
       const tokenData = await tokenResponse.json();
       const ephemeralKey = tokenData?.client_secret?.value ?? tokenData?.value;
 
@@ -93,11 +104,31 @@ export function VoicePanel({
 
       const dataChannel = pc.createDataChannel("oai-events");
       dataChannel.addEventListener("open", () => {
+        const sessionInstruction =
+          typeof tokenData?.instructions === "string"
+            ? tokenData.instructions
+            : sessionTitle
+              ? [
+                  "You are Cultvr, a concise college counselling voice coach for a high school student.",
+                  `The selected guided reflection is: ${sessionTitle}.`,
+                  sessionFocus ? `Session focus: ${sessionFocus}.` : "",
+                  currentPrompt ? `Start with this prompt: ${currentPrompt}.` : "",
+                  sessionPrompts?.length
+                    ? `Use these counselor prompts as private direction, not a checklist: ${sessionPrompts.join(" | ")}.`
+                    : "",
+                  "Keep the conversation free-flowing. Ask one short question at a time, listen, then redirect gently toward concrete details, impact, values, evidence, and reflection that match the selected session.",
+                  "Do not list every prompt upfront. Do not force goals or tasks. When the student has enough useful material, give a brief spoken recap of the main points and tell them they can stop and review.",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              : "Start as a concise college planning coach. Ask what the student wants to work on today.";
+
         dataChannel.send(
           JSON.stringify({
             type: "session.update",
             session: {
               type: "realtime",
+              instructions: sessionInstruction,
               audio: {
                 input: {
                   transcription: {
@@ -108,22 +139,6 @@ export function VoicePanel({
             },
           }),
         );
-
-        const sessionInstruction = sessionTitle
-          ? [
-              "You are Cultvr, a concise college counselling voice coach for a high school student.",
-              `The selected guided reflection is: ${sessionTitle}.`,
-              sessionFocus ? `Session focus: ${sessionFocus}.` : "",
-              currentPrompt ? `Start with this prompt: ${currentPrompt}.` : "",
-              sessionPrompts?.length
-                ? `Use these counselor prompts as private direction, not a checklist: ${sessionPrompts.join(" | ")}.`
-                : "",
-              "Keep the conversation free-flowing. Ask one short question at a time, listen, then redirect gently toward concrete details, impact, values, evidence, and reflection that match the selected session.",
-              "Do not list every prompt upfront. Do not force goals or tasks. When the student has enough useful material, give a brief spoken recap of the main points and tell them they can stop and review.",
-            ]
-              .filter(Boolean)
-              .join(" ")
-          : "Start as a concise college planning coach. Ask what the student wants to work on today.";
 
         dataChannel.send(
           JSON.stringify({

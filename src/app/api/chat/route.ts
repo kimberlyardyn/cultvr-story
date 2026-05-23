@@ -3,6 +3,10 @@ import { z } from "zod";
 
 import { env, hasOpenAIEnv, hasSupabaseEnv } from "@/lib/env";
 import { getOpenAI } from "@/lib/openai";
+import {
+  buildStudentSessionContext,
+  formatStudentContextForPrompt,
+} from "@/lib/student-context";
 import { createClient } from "@/lib/supabase/server";
 
 const requestSchema = z.object({
@@ -39,35 +43,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [notes, goals, tasks, activities] = await Promise.all([
-      supabase
-        .from("notes")
-        .select("title,body,category")
-        .order("created_at", { ascending: false })
-        .limit(5),
-      supabase
-        .from("goals")
-        .select("title,status,target_date")
-        .order("created_at", { ascending: false })
-        .limit(5),
-      supabase
-        .from("tasks")
-        .select("title,status,due_date")
-        .order("created_at", { ascending: false })
-        .limit(8),
-      supabase
-        .from("activities")
-        .select("name,role,impact,years")
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-
-    context = JSON.stringify({
-      notes: notes.data ?? [],
-      goals: goals.data ?? [],
-      tasks: tasks.data ?? [],
-      activities: activities.data ?? [],
-    });
+    context = formatStudentContextForPrompt(
+      await buildStudentSessionContext(supabase, user.id),
+    );
   }
 
   const openai = getOpenAI();
@@ -82,11 +60,11 @@ export async function POST(request: Request) {
       {
         role: "system",
         content:
-          "You are Cultvr, a concise college counseling assistant for high school students. Help students reflect, identify concrete achievements, shape goals, and define next tasks. Avoid inventing credentials or outcomes. Ask one useful follow-up when needed. Keep answers structured and under 180 words.",
+          "You are Cultvr, a concise college counseling assistant for high school students. Personalize responses from the saved student context. Help students reflect, identify concrete achievements, shape goals, and define next tasks. Avoid inventing credentials, outcomes, or personal traits. Ask one useful follow-up when needed. Keep answers structured and under 180 words.",
       },
       {
         role: "user",
-        content: `Student workspace context:\n${context || "No saved context yet."}\n\nConversation:\n${latestUserText}`,
+        content: `Student context:\n${context || "No saved context yet."}\n\nConversation:\n${latestUserText}`,
       },
     ],
   });

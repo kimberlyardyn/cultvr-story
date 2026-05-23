@@ -63,6 +63,63 @@ export type ProfilePreferences = {
   font_family: "serif" | "sans";
 };
 
+export type StudentAdmissionsProfile = {
+  user_id: string;
+  grade_level: string | null;
+  application_stage: string | null;
+  intended_majors: string[];
+  interests: string[];
+  current_priorities: string[];
+  target_colleges: string[];
+  important_deadlines: string | null;
+  coaching_style: "direct" | "encouraging" | "structured" | "exploratory";
+  personality_notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentMemory = {
+  id: string;
+  user_id: string;
+  memory_type:
+    | "theme"
+    | "strength"
+    | "gap"
+    | "activity_evidence"
+    | "essay_seed"
+    | "college_fit"
+    | "next_prompt"
+    | "coaching_preference";
+  label: string;
+  summary: string;
+  confidence: number;
+  source_session_id: string | null;
+  status: "active" | "archived" | "rejected";
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentSessionContext = {
+  profile: StudentAdmissionsProfile | null;
+  memories: StudentMemory[];
+  recentSessions: GuidedSession[];
+  notes: Note[];
+  goals: Goal[];
+  tasks: StudentTask[];
+  activities: Activity[];
+  awards: Award[];
+  collegeList: CollegeListEntry[];
+};
+
+export type PersonalizedSessionPlan = {
+  sessionTitle: string;
+  sessionFocus: string | null;
+  openingPrompt: string;
+  privateGoals: string[];
+  suggestedPrompts: string[];
+  contextBrief: string;
+};
+
 export type GuidedSession = {
   id: string;
   session_type: string;

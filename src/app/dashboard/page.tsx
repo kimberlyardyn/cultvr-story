@@ -12,6 +12,8 @@ import type {
   GuidedSession,
   Note,
   ProfilePreferences,
+  StudentAdmissionsProfile,
+  StudentMemory,
   StudentTask,
 } from "@/lib/types";
 
@@ -43,12 +45,37 @@ export default async function DashboardPage({
   const { tab } = await searchParams;
   const initialTab = dashboardTabs.has(tab ?? "") ? tab : undefined;
 
-  const [profile, notes, goals, tasks, activities, awards, collegeList, guidedSessions] = await Promise.all([
+  const [
+    profile,
+    studentProfile,
+    studentMemories,
+    notes,
+    goals,
+    tasks,
+    activities,
+    awards,
+    collegeList,
+    guidedSessions,
+  ] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name,display_name,nav_layout,nav_collapsed,top_nav_collapsed,appearance,font_family")
       .eq("id", user.id)
       .maybeSingle(),
+    supabase
+      .from("student_admissions_profiles")
+      .select(
+        "user_id,grade_level,application_stage,intended_majors,interests,current_priorities,target_colleges,important_deadlines,coaching_style,personality_notes,created_at,updated_at",
+      )
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("student_memories")
+      .select("id,user_id,memory_type,label,summary,confidence,source_session_id,status,created_at,updated_at")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(12),
     supabase
       .from("notes")
       .select("id,title,body,category,created_at")
@@ -99,6 +126,8 @@ export default async function DashboardPage({
       guidedSessions={(guidedSessions.data ?? []) as GuidedSession[]}
       notes={(notes.data ?? []) as Note[]}
       profile={(profile.data ?? null) as ProfilePreferences | null}
+      studentMemories={(studentMemories.data ?? []) as StudentMemory[]}
+      studentProfile={(studentProfile.data ?? null) as StudentAdmissionsProfile | null}
       tasks={(tasks.data ?? []) as StudentTask[]}
       userEmail={user.email ?? null}
       initialTab={initialTab}
