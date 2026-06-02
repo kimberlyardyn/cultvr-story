@@ -2,17 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
-const colors = {
-  stemDark: "#2A3144",
-  olive: "#3F4A66",
-  sage: "#7A86A8",
-  sageHi: "#A4AEC8",
-  clay: "#C97A5D",
-  clayHi: "#E59C7C",
-  clayDark: "#8E4F38",
-  butter: "#E0B26B",
-  butterHi: "#F1C97A",
-};
+// Minimal monochrome palette: a single ink tone (matches the page ink
+// #1F2433). Depth and emphasis are conveyed purely through opacity and line
+// weight rather than color.
+const INK = "31, 36, 51";
+const ink = (alpha: number) => `rgba(${INK}, ${alpha})`;
 
 type Branch = {
   depth: number;
@@ -54,7 +48,7 @@ type PlantSample = {
   y: number;
 };
 
-const branchColors = [colors.stemDark, colors.olive, colors.sage, colors.sageHi];
+const branchColors = [ink(0.9), ink(0.68), ink(0.5), ink(0.38)];
 const branchWidths = [5, 3.2, 2.1, 1.4];
 
 function makeRng(seed: number) {
@@ -199,7 +193,7 @@ export function LandingPlant() {
         ctx.stroke();
       }
 
-      ctx.strokeStyle = branchColors[branch.depth] ?? colors.sageHi;
+      ctx.strokeStyle = branchColors[branch.depth] ?? ink(0.38);
       ctx.lineWidth = lineWidth;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
@@ -216,31 +210,24 @@ export function LandingPlant() {
       if (r <= 0) return;
 
       if (node.kind === "leaf") {
-        ctx.strokeStyle = "rgba(201,122,93,0.32)";
+        ctx.strokeStyle = ink(0.18);
         ctx.lineWidth = Math.max(0.6, scale());
         ctx.beginPath();
         ctx.arc(cx, cy, r * 1.55, 0, Math.PI * 2);
         ctx.stroke();
 
-        const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
-        gradient.addColorStop(0, colors.clayHi);
-        gradient.addColorStop(1, colors.clay);
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = ink(0.5);
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.fill();
         return;
       }
 
-      const gradient = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
-      gradient.addColorStop(0, colors.butterHi);
-      gradient.addColorStop(0.6, colors.butter);
-      gradient.addColorStop(1, colors.clay);
-      ctx.fillStyle = gradient;
+      ctx.fillStyle = ink(0.82);
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "rgba(142,79,56,0.5)";
+      ctx.strokeStyle = ink(0.3);
       ctx.lineWidth = Math.max(0.8, 1.2 * scale());
       ctx.stroke();
     }
@@ -254,7 +241,7 @@ export function LandingPlant() {
         const y2 = branch.y2 * height;
         const segLength = Math.hypot(x2 - x1, y2 - y1);
         const steps = Math.max(4, Math.round(segLength / 6));
-        const color = branchColors[branch.depth] ?? colors.sageHi;
+        const color = branchColors[branch.depth] ?? ink(0.38);
         for (let index = 0; index <= steps; index += 1) {
           const t = index / steps;
           samples.push({
@@ -279,11 +266,11 @@ export function LandingPlant() {
             color:
               node.kind === "root"
                 ? Math.random() > 0.5
-                  ? colors.butter
-                  : colors.clay
+                  ? ink(0.82)
+                  : ink(0.6)
                 : Math.random() > 0.25
-                  ? colors.clay
-                  : colors.clayHi,
+                  ? ink(0.5)
+                  : ink(0.36),
             size: 1.6,
           });
         }
