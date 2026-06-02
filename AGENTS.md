@@ -15,6 +15,13 @@ OpenAI.
 - Keep UI practical and workflow-first. This is a counseling workspace, not a
   marketing site.
 
+## Deployment
+
+- Production is hosted on Vercel at https://cultvr-story.vercel.app and deploys
+  automatically from the `master` branch.
+- Ship changes by pushing directly to `master`. Do not open pull requests or
+  use preview branches for deploys — push straight to `master`.
+
 ## Checks
 
 Run before handing off changes:
