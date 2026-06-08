@@ -1,7 +1,30 @@
 import { ArrowRight, BookOpen, Mic, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PublicNav } from "@/components/public-nav";
+
+const ABOUT_DESCRIPTION =
+  "Why Cultivr exists: one quiet workspace where college activities, awards, essays, and reflections sit together — so application season is editing, not scrambling.";
+
+export const metadata: Metadata = {
+  title: "About",
+  description: ABOUT_DESCRIPTION,
+  alternates: { canonical: "/about" },
+  openGraph: {
+    type: "website",
+    siteName: "Cultivr",
+    locale: "en_US",
+    url: "/about",
+    title: "About Cultivr",
+    description: ABOUT_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Cultivr",
+    description: ABOUT_DESCRIPTION,
+  },
+};
 
 const pillars = [
   {

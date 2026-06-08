@@ -21,10 +21,53 @@ const instrumentSerif = Instrument_Serif({
   weight: "400",
 });
 
+const SITE_URL = "https://cultvr-story.vercel.app";
+const SITE_NAME = "Cultivr";
+const DEFAULT_TITLE = "Cultivr — A College Journal & Counseling Workspace";
+const DEFAULT_DESCRIPTION =
+  "Cultivr is a college journal and counseling workspace for logging activities, awards, goals, and reflections — with chat and voice coaching that help students arrive at application season with a record worth reading.";
+
 export const metadata: Metadata = {
-  title: "Cultvr",
-  description:
-    "A college counseling workspace for notes, goals, tasks, activities, chat, and voice coaching.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: DEFAULT_TITLE,
+    template: "%s · Cultivr",
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "college counseling",
+    "college applications",
+    "activities journal",
+    "college essays",
+    "extracurricular tracker",
+    "admissions workspace",
+    "student reflection",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_US",
+    url: SITE_URL,
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({

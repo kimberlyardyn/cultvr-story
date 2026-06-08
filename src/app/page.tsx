@@ -1,11 +1,72 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LandingPlant } from "@/components/landing-plant";
 import { RevealText } from "@/components/reveal-text";
 
+const SITE_URL = "https://cultvr-story.vercel.app";
+const HOME_TITLE = "Cultivr — From Blank Page to Big Impact";
+const HOME_DESCRIPTION =
+  "Cultivr is a college journal and counseling workspace. Log activities, awards, and reflections, talk through voice sessions, and arrive at application season with a record worth reading.";
+
+export const metadata: Metadata = {
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "Cultivr",
+    locale: "en_US",
+    url: "/",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Cultivr",
+      url: SITE_URL,
+      description:
+        "A college journal and counseling workspace for students and counselors.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "Cultivr",
+      url: SITE_URL,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+    {
+      "@type": "WebApplication",
+      "@id": `${SITE_URL}/#webapp`,
+      name: "Cultivr",
+      url: SITE_URL,
+      applicationCategory: "EducationalApplication",
+      operatingSystem: "Web",
+      description: HOME_DESCRIPTION,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
+};
+
 export default function Home() {
   return (
-    <main
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <main
       className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[#ECE6E0] px-5 text-[#1F2433]"
       style={{
         backgroundImage:
@@ -68,5 +129,6 @@ export default function Home() {
         </p>
       </div>
     </main>
+    </>
   );
 }

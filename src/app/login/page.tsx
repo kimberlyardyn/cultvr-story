@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
+
 import { LoginAuthCard } from "@/components/login-auth-card";
 import { PublicNav } from "@/components/public-nav";
+
+export const metadata: Metadata = {
+  title: "Log in",
+  description: "Log in to your Cultivr workspace.",
+  robots: { index: false, follow: false },
+};
 
 type LoginPageProps = {
   searchParams: Promise<{ message?: string }>;

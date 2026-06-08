@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -17,6 +18,11 @@ import type {
   StudentTask,
   WeeklyChallenge,
 } from "@/lib/types";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  robots: { index: false, follow: false },
+};
 
 const dashboardTabs = new Set([
   "overview",
@@ -154,7 +160,7 @@ function MissingConfig() {
     <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-6 py-10">
       <section className="rounded-lg border border-black/10 bg-white p-6 shadow-sm">
         <Link className="text-sm font-semibold text-[#355c46]" href="/">
-          Cultvr
+          Cultivr
         </Link>
         <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[#17201b]">
           Supabase is not configured yet.
