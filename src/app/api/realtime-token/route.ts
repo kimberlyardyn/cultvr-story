@@ -65,35 +65,43 @@ async function createRealtimeToken(sessionRequest: z.infer<typeof requestSchema>
     questionPlan = plan;
   }
 
-  const response = await fetch(
-    "https://api.openai.com/v1/realtime/client_secrets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.openaiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        session: {
-          type: "realtime",
-          model: env.openaiRealtimeModel,
-          audio: {
-            output: {
-              voice: "alloy",
-            },
-          },
-          instructions,
+  try {
+    const response = await fetch(
+      "https://api.openai.com/v1/realtime/client_secrets",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.openaiApiKey}`,
+          "Content-Type": "application/json",
         },
-      }),
-    },
-  );
+        body: JSON.stringify({
+          session: {
+            type: "realtime",
+            model: env.openaiRealtimeModel,
+            audio: {
+              output: {
+                voice: "alloy",
+              },
+            },
+            instructions,
+          },
+        }),
+      },
+    );
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: await response.text() },
+        { status: response.status },
+      );
+    }
+
+    return NextResponse.json({ ...(await response.json()), instructions, questionPlan });
+  } catch (error) {
+    console.error("[api/realtime-token] OpenAI request failed", error);
     return NextResponse.json(
-      { error: await response.text() },
-      { status: response.status },
+      { error: "Could not start a voice session. Please try again." },
+      { status: 502 },
     );
   }
-
-  return NextResponse.json({ ...(await response.json()), instructions, questionPlan });
 }

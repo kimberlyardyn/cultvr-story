@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { env, hasOpenAIEnv } from "@/lib/env";
+import { env, hasOpenAIEnv, hasSupabaseEnv } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Mints an ephemeral OpenAI Realtime token specifically for the activity-entry
@@ -16,32 +17,53 @@ export async function POST() {
     );
   }
 
-  const response = await fetch(
-    "https://api.openai.com/v1/realtime/client_secrets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.openaiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        session: {
-          type: "realtime",
-          model: env.openaiRealtimeModel,
-          audio: { output: { voice: "alloy" } },
-          instructions:
-            "You are Cultvr's activity intake coach. Help a high school student quickly capture details about one extracurricular activity for college applications.",
-        },
-      }),
-    },
-  );
+  // Require an authenticated user so this paid OpenAI endpoint can't be called
+  // anonymously. Mirrors the guard on /api/chat and /api/realtime-token.
+  if (hasSupabaseEnv()) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!response.ok) {
-    return NextResponse.json(
-      { error: await response.text() },
-      { status: response.status },
-    );
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
-  return NextResponse.json(await response.json());
+  try {
+    const response = await fetch(
+      "https://api.openai.com/v1/realtime/client_secrets",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.openaiApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session: {
+            type: "realtime",
+            model: env.openaiRealtimeModel,
+            audio: { output: { voice: "alloy" } },
+            instructions:
+              "You are Cultvr's activity intake coach. Help a high school student quickly capture details about one extracurricular activity for college applications.",
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: await response.text() },
+        { status: response.status },
+      );
+    }
+
+    return NextResponse.json(await response.json());
+  } catch (error) {
+    console.error("[api/activity-voice-token] OpenAI request failed", error);
+    return NextResponse.json(
+      { error: "Could not start a voice session. Please try again." },
+      { status: 502 },
+    );
+  }
 }
