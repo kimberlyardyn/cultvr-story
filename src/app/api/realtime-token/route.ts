@@ -7,6 +7,11 @@ import {
   buildStudentSessionContext,
   createPersonalizedSessionPlan,
 } from "@/lib/student-context";
+import {
+  checkRateLimit,
+  tooManyRequests,
+  voiceRatelimit,
+} from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
 import type { PersonalizedSessionPlan } from "@/lib/types";
 
@@ -50,6 +55,11 @@ async function createRealtimeToken(sessionRequest: z.infer<typeof requestSchema>
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const limit = await checkRateLimit(voiceRatelimit, `user:${user.id}`);
+    if (limit && !limit.success) {
+      return tooManyRequests(limit);
     }
 
     const studentContext = await buildStudentSessionContext(supabase, user.id);

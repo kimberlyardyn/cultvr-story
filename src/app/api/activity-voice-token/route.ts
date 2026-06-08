@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { env, hasOpenAIEnv, hasSupabaseEnv } from "@/lib/env";
+import {
+  checkRateLimit,
+  clientIdentifier,
+  tooManyRequests,
+  voiceRatelimit,
+} from "@/lib/ratelimit";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -9,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
  * client via `session.update` once the data channel is open, so this endpoint
  * stays minimal.
  */
-export async function POST() {
+export async function POST(request: Request) {
   if (!hasOpenAIEnv()) {
     return NextResponse.json(
       { error: "OPENAI_API_KEY is not configured." },
@@ -19,6 +25,7 @@ export async function POST() {
 
   // Require an authenticated user so this paid OpenAI endpoint can't be called
   // anonymously. Mirrors the guard on /api/chat and /api/realtime-token.
+  let userId: string | null = null;
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
     const {
@@ -28,6 +35,15 @@ export async function POST() {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    userId = user.id;
+  }
+
+  const limit = await checkRateLimit(
+    voiceRatelimit,
+    clientIdentifier(request, userId),
+  );
+  if (limit && !limit.success) {
+    return tooManyRequests(limit);
   }
 
   try {

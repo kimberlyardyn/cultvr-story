@@ -8,6 +8,12 @@ import {
   formatStudentContextForPrompt,
 } from "@/lib/student-context";
 import { createClient } from "@/lib/supabase/server";
+import {
+  chatRatelimit,
+  checkRateLimit,
+  clientIdentifier,
+  tooManyRequests,
+} from "@/lib/ratelimit";
 
 const requestSchema = z.object({
   messages: z.array(
@@ -39,6 +45,7 @@ export async function POST(request: Request) {
   }
 
   let context = "";
+  let userId: string | null = null;
 
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
@@ -50,9 +57,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    userId = user.id;
     context = formatStudentContextForPrompt(
       await buildStudentSessionContext(supabase, user.id),
     );
+  }
+
+  const limit = await checkRateLimit(
+    chatRatelimit,
+    clientIdentifier(request, userId),
+  );
+  if (limit && !limit.success) {
+    return tooManyRequests(limit);
   }
 
   const latestUserText = parsed.data.messages
